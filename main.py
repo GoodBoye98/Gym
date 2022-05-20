@@ -2,11 +2,7 @@ import rlgym
 import numpy as n
 import torch as th
 from stable_baselines3 import PPO
-from Rewards import BBReward
-from Observations import BBObservations
-from StateSetter import BBStateSetter
-from ActionParser import BBActionParser
-from Terminate import BBTerminalCondition
+from BitchBot import BBReward, BBObservations, BBActionParser, BBTerminalCondition, BBStateSetter
 
 # Imports for multiple instances
 from rlgym.envs import Match
