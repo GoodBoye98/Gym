@@ -1,5 +1,5 @@
-from rlgym.utils.terminal_conditions.common_conditions import NoTouchTimeoutCondition, GoalScoredCondition
+from rlgym.utils.terminal_conditions.common_conditions import NoTouchTimeoutCondition, GoalScoredCondition, TimeoutCondition
 
 
 def BBTerminalCondition():
-    return GoalScoredCondition()
+    return TimeoutCondition(256)

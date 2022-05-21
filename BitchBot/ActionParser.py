@@ -5,9 +5,7 @@ from rlgym.utils.action_parsers import ActionParser
 
 
 class BBActionParser(ActionParser):
-    """
-    Simple discrete action space. All the analog actions have 3 bins by default: -1, 0 and 1.
-    """
+    # Unused at the current time
 
     def __init__(self, n_bins=3):
         super().__init__()
@@ -52,7 +50,7 @@ class BBActionParser(ActionParser):
 
 
     def get_action_space(self) -> gym.spaces.Space:
-        return gym.spaces.Discrete(self.possibleActions.shape[0])
+        return gym.spaces.MultiDiscrete([self.possibleActions.shape[0]])
 
     def parse_actions(self, actions: n.ndarray, state: GameState) -> n.ndarray:
         if isinstance(actions, n.int64):

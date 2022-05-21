@@ -4,16 +4,34 @@ from rlgym.utils.state_setters import StateWrapper
 from rlgym.utils.common_values import BLUE_TEAM, ORANGE_TEAM, CEILING_Z
 
 class BBStateSetter(StateSetter):
+
+    def _ballInFrontOfCar(self, distMax=700, distMin=200, square=200, heightMax=92.75, heighMin=92.75):
+        while True:
+            # Random starting position and rotation
+            x = n.random.rand() * 7000 - 3500
+            y = n.random.rand() * 7000 - 3500
+            yaw = n.random.rand() * 2 * n.pi - n.pi
+
+            # Place ball a little in front of the car, randomly in a 200x200 square
+            dist = n.array([n.cos(yaw), n.sin(yaw)]) * (n.random.rand() * (distMax - distMin) + distMin)
+            x_offset = n.random.rand() * square - square / 2
+            y_offset = n.random.rand() * square - square / 2
+            xBall = x + dist[0] + x_offset
+            yBall = y + dist[1] + y_offset
+            zBall = n.random.rand() * (heightMax - heighMin) + heighMin
+
+            # Check if ball is within statium, otherwise try another random position
+            if -3500 < xBall < 3500 and -3500 < yBall < 3500:
+                return x, y, 17, yaw, xBall, yBall, 92.75
+
+
     def reset(self, state_wrapper: StateWrapper):
     
         # Set up our desired spawn location and orientation. Here, we will only change the yaw, leaving the remaining orientation values unchanged.
         # randomCarPos = [n.random]
         
         # Random starting position and rotation
-        x = n.random.rand() * 8000 - 4000
-        y = n.random.rand() * 8000 - 4000
-        z = 17
-        yaw = n.random.rand() * 2 * n.pi - n.pi
+        x, y, z, yaw, xBall, yBall, zBall = self._ballInFrontOfCar()
 
         desired_car_pos = [x, y, z] #x, y, z
         desired_yaw = yaw
@@ -36,6 +54,4 @@ class BBStateSetter(StateSetter):
             car.boost = 0.33
             
         # Now we will spawn the ball in the center of the field.
-        x = n.random.rand() * 8000 - 4000
-        y = n.random.rand() * 8000 - 4000
-        state_wrapper.ball.set_pos(x=x, y=y, z=92.75)
+        state_wrapper.ball.set_pos(x=xBall, y=yBall, z=zBall)
