@@ -47,7 +47,7 @@ class BBReward(RewardFunction):
         # reward += n.exp(-dist / 20)
 
         # Reward using few inputs
-        inputsSquareSum = n.sum(n.array([drive, steer, yaw, pitch, roll, jump, boost, powerslide]) ** 2)
+        inputsSquareSum = n.sum(n.abs(n.array([0.4 * drive, 0.4 * steer, 0.4 * yaw, 0.4 * pitch, roll, 1.2 * jump, boost, powerslide])))
         reward -= inputsSquareSum / 100
 
         # # Reward for moving closer to the ball
@@ -58,8 +58,12 @@ class BBReward(RewardFunction):
         yaw = player.car_data.yaw()
         forward = n.array([n.cos(yaw), n.sin(yaw), 0])  # Vector in forward direction of car
         toBall = ballPos - carPos; toBall /= n.sqrt(n.sum(toBall**2))  # Normalized vetor from car to ball
-        speedMultiplier = n.sqrt(n.sum(carVel**2)) / 1410  # Car speed, normalized to 1 at max speed w/o boost
-        reward += 1/15 * n.sum(forward * toBall)  # cos of angle between the two vectors
+        speedMultiplier = n.sum(carVel * forward) / 1410  # Car speed, normalized to 1 at max speed w/o boost
+        facingMultiplier = n.sum(forward * toBall)
+        if speedMultiplier < 0 and facingMultiplier < 0:  # reward calculation
+            reward -= 1/15 * facingMultiplier * speedMultiplier
+        else:
+            reward += 1/15 * facingMultiplier * speedMultiplier
 
 
         # # Reward for touching the ball

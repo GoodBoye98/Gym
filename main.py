@@ -2,6 +2,7 @@ import rlgym
 import numpy as n
 import torch as th
 from stable_baselines3 import PPO, ddpg
+from stable_baselines3.common.callbacks import CheckpointCallback
 from BitchBot import BBReward, BBObservations, BBActionParser, BBStateSetter, BBTerminalCondition
 
 # Imports for multiple instances
@@ -26,19 +27,18 @@ def get_match():
 
 def main():
     # Make the default rlgym environment
-    # env = SB3MultipleInstanceEnv(match_func_or_matches=get_match, num_instances=2, wait_time=20)
-    env = rlgym.make(reward_fn=BBReward(), obs_builder=BBObservations(), state_setter=BBStateSetter(), action_parser=BBActionParser())
+    env = SB3MultipleInstanceEnv(match_func_or_matches=get_match, num_instances=6, wait_time=30, force_paging=True)
+    # env = rlgym.make(reward_fn=BBReward(), obs_builder=BBObservations(), state_setter=BBStateSetter(), action_parser=BBActionParser())
 
     # Initialize PPO from stable_baselines3
-    model = PPO("MlpPolicy", env=env, verbose=1, n_steps=256, learning_rate=3e-4, device='cuda')
-    model.load("initial.zip")
+    model = PPO("MlpPolicy", env=env, verbose=1, n_steps=256, batch_size=128, learning_rate=5e-5, device='cuda', ent_coef=0.01)
+    model.set_parameters("initial.zip")  # Load parameters from earlier run
 
-    # Train the dumb ass agent!
-    model.learn(total_timesteps=int(5e6))
-    model.save("following_ball.zip")
+    # Save checkpoints
+    callback = CheckpointCallback(round(1e6 / env.num_envs), save_path="Iterations", name_prefix="bb_iteration")
 
-    # Close the environment
-    env.close()
+    # Train the agent!
+    model.learn(total_timesteps=int(1e7), callback=callback)
 
 
 if __name__ == '__main__':
