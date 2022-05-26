@@ -5,53 +5,82 @@ from rlgym.utils.common_values import BLUE_TEAM, ORANGE_TEAM, CEILING_Z
 
 class BBStateSetter(StateSetter):
 
-    def _ballAroundCar(self, distMax=1000, distMin=400, heightMax=92.75, heighMin=92.75):
+    def _ballAroundCar(self, state_wrapper: StateWrapper) -> None:
+        ## Parameters
+        distMax = 1000
+        distMin = 400
+        heightMax = 92.75
+        heighMin = 92.75
+
         while True:
             # Random starting position and rotation
-            x = n.random.rand() * 7000 - 3500
-            y = n.random.rand() * 7000 - 3500
-            yaw = n.random.rand() * 2 * n.pi - n.pi
+            x = n.random.uniform(-3500, 3500)
+            y = n.random.uniform(-3500, 3500)
+            yaw = n.random.uniform(-n.pi, n.pi)
 
             # Place ball randomly around the car
-            rot = n.random.rand() * 2 * n.pi
-            dist = n.array([n.cos(rot), n.sin(rot)]) * (n.random.rand() * (distMax - distMin) + distMin)
+            rot = n.random.uniform(0, 2 * n.pi)
+            dist = n.array([n.cos(rot), n.sin(rot)]) * (n.random.uniform(distMin, distMax))
             xBall = x + dist[0]
             yBall = y + dist[1]
-            zBall = n.random.rand() * (heightMax - heighMin) + heighMin
+            zBall = n.random.uniform(heighMin, heightMax)
 
             # Check if ball is within statium, otherwise try another random position
             if -3500 < xBall < 3500 and -3500 < yBall < 3500:
-                return x, y, 18.33, yaw, xBall, yBall, 92.75
+                for car in state_wrapper.cars:
+                    car.set_pos(x=x, y=y, z=17.01)
+                    car.set_rot(yaw=yaw)
 
-    def _ballInFrontOfCar(self, distMax=1000, distMin=500, square=400, heightMax=92.75, heighMin=92.75):
+                state_wrapper.ball.set_pos(x=xBall, y=yBall, z=zBall)
+                return
+
+    def _ballInFrontOfCar(self, state_wrapper: StateWrapper) -> None:
+        ## Parameters
+        distMax = 1000
+        distMin = 500
+        square = 400
+        heightMax = 92.75
+        heighMin = 92.75
+
         while True:
             # Random starting position and rotation
-            x = n.random.rand() * 7000 - 3500
-            y = n.random.rand() * 7000 - 3500
-            yaw = n.random.rand() * 2 * n.pi - n.pi
+            x = n.random.uniform(-3500, 3500)
+            y = n.random.uniform(-3500, 3500)
+            yaw = n.random.uniform(-n.pi, n.pi)
 
             # Place ball a little in front of the car, randomly in a 200x200 square
-            dist = n.array([n.cos(yaw), n.sin(yaw)]) * (n.random.rand() * (distMax - distMin) + distMin)
-            x_offset = n.random.rand() * square - square / 2
-            y_offset = n.random.rand() * square - square / 2
+            dist = n.array([n.cos(yaw), n.sin(yaw)]) * (n.random.uniform(distMin, distMax))
+            x_offset = n.random.uniform(-square/2, square/2)
+            y_offset = n.random.uniform(-square/2, square/2)
             xBall = x + dist[0] + x_offset
             yBall = y + dist[1] + y_offset
-            zBall = n.random.rand() * (heightMax - heighMin) + heighMin
+            zBall = n.random.uniform(heighMin, heightMax)
 
             # Check if ball is within statium, otherwise try another random position
             if -3500 < xBall < 3500 and -3500 < yBall < 3500:
-                return x, y, 18.33, yaw, xBall, yBall, 92.75
+                for car in state_wrapper.cars:
+                    car.set_pos(x=x, y=y, z=17.01)
+                    car.set_rot(yaw=yaw)
 
-    def _ballInAir(self, velMax=2000, velMin=200, heightMax=1900, heighMin=150):
+                state_wrapper.ball.set_pos(x=xBall, y=yBall, z=zBall)
+                return
+
+    def _ballInAir(self, state_wrapper: StateWrapper) -> None:
+        ## Parameters
+        velMax = 2000
+        velMin = 200
+        heightMax = 1900
+        heighMin = 150
+
         # Random starting position and rotation
-        x = n.random.rand() * 7000 - 3500
-        y = n.random.rand() * 7000 - 3500
-        yaw = n.random.rand() * 2 * n.pi - n.pi
+        x = n.random.uniform(-3500, 3500)
+        y = n.random.uniform(-3500, 3500)
+        yaw = n.random.uniform(-n.pi, n.pi)
 
         # Place ball in random location
-        xBall = n.random.rand() * 7000 - 3500
-        yBall = n.random.rand() * 7000 - 3500
-        zBall = n.random.rand() * (heightMax - heighMin) + heighMin
+        xBall = n.random.uniform(-3500, 3500)
+        yBall = n.random.uniform(-3500, 3500)
+        zBall = n.random.uniform(heighMin, heightMax)
 
         # Set random initial velocity to ball
         xVelBall = n.random.normal()
@@ -64,8 +93,46 @@ class BBStateSetter(StateSetter):
         yVelBall *= norm
         zVelBall *= norm
 
-        return x, y, 18.33, yaw, xBall, yBall, zBall, xVelBall, yVelBall, zVelBall 
+        # Set positions and velocities
+        for car in state_wrapper.cars:
+            car.set_pos(x=x, y=y, z=17.01)
+            car.set_rot(yaw=yaw)
 
+        state_wrapper.ball.set_pos(x=xBall, y=yBall, z=zBall)
+        state_wrapper.ball.set_lin_vel(x=xVelBall, y=yVelBall, z=zVelBall)
+        return
+
+    def _ballOnCar(self, state_wrapper: StateWrapper) -> None:
+        ## Parameters
+        velMax = 2000
+        velMin = 10
+
+        # Random starting position and rotation
+        x = n.random.uniform(-3500, 3500)
+        y = n.random.uniform(-3500, 3500)
+        yaw = n.random.uniform(-n.pi, n.pi)
+
+        cos = n.cos(yaw)
+        sin = n.sin(yaw)
+
+        # Random starting speed
+        speed = n.random.uniform(0, 2000)
+        xVel = cos * speed
+        yVel = sin * speed
+
+        # Move ball on hood a little
+        xAdd = cos * n.random.uniform(0, 20)
+        yAdd = sin * n.random.uniform(0, 20)
+
+        # Set positions and velocities
+        for car in state_wrapper.cars:
+            car.set_pos(x=x, y=y, z=17.01)
+            car.set_lin_vel(x=xVel, y=xVel, z=0)
+            car.set_rot(yaw=yaw)
+
+        state_wrapper.ball.set_pos(x=x+xAdd, y=y+yAdd, z=150)
+        state_wrapper.ball.set_lin_vel(x=xVel, y=xVel, z=0)
+        return
 
     def reset(self, state_wrapper: StateWrapper):
     
@@ -75,28 +142,14 @@ class BBStateSetter(StateSetter):
         # Random starting position and rotation
         # x, y, z, yaw, xBall, yBall, zBall = self._ballAroundCar()
         # state_wrapper.ball.set_pos(x=xBall, y=yBall, z=zBall)
-
-        x, y, z, yaw, xBall, yBall, zBall, xVelBall, yVelBall, zVelBall = self._ballInAir()
-        state_wrapper.ball.set_pos(x=xBall, y=yBall, z=zBall)
-        state_wrapper.ball.set_lin_vel(x=xVelBall, y=yVelBall, z=zVelBall)      
-
-        desired_car_pos = [x, y, z] #x, y, z
-        desired_yaw = yaw
         
-        # Loop over every car in the game.
-        for car in state_wrapper.cars:
+        # List of all state setters
+        inits = [self._ballAroundCar, self._ballInAir, self._ballInFrontOfCar, self._ballOnCar]
 
-            if car.team_num == BLUE_TEAM:
-                pos = desired_car_pos
-                yaw = desired_yaw
-                
-            elif car.team_num == ORANGE_TEAM:
-                # We will invert values for the orange team so our state setter treats both teams in the same way.
-                pos = [-1*coord for coord in desired_car_pos]
-                yaw = -1*desired_yaw
-                
-            # Now we just use the provided setters in the CarWrapper we are manipulating to set its state. Note that here we are unpacking the pos array to set the position of 
-            # the car. This is merely for convenience, and we will set the x,y,z coordinates directly when we set the state of the ball in a moment.
-            car.set_pos(*pos)
-            car.set_rot(yaw=yaw)
-            car.boost = 0.33       
+        # Choose random state setter, and use it to set state
+        init = n.random.choice(inits)
+        init(state_wrapper)
+
+        # Loop over every car in the game and set boost amount
+        for car in state_wrapper.cars:
+            car.boost = 0.33

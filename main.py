@@ -1,7 +1,6 @@
 import rlgym
 import numpy as n
-import torch as th
-from stable_baselines3 import PPO, ddpg
+from stable_baselines3 import PPO
 from stable_baselines3.common.callbacks import CheckpointCallback
 from BitchBot import BBReward, BBObservations, BBActionParser, BBStateSetter, BBTerminalCondition
 
@@ -11,8 +10,8 @@ from rlgym.utils.state_setters import DefaultState
 from rlgym.utils.action_parsers import DefaultAction
 from rlgym_tools.sb3_utils import SB3MultipleInstanceEnv
 
-N_STEPS = 512
-BATCH_SIZE = 256
+N_STEPS = 1024
+BATCH_SIZE = 512
 
 
 # This is the function we need to provide to our SB3MultipleInstanceEnv to construct a match. Note that this function MUST return a Match object.
@@ -24,7 +23,8 @@ def get_match():
         obs_builder=BBObservations(),
         state_setter=BBStateSetter(),
         action_parser=BBActionParser(),
-        terminal_conditions=BBTerminalCondition(N_STEPS)
+        terminal_conditions=BBTerminalCondition(N_STEPS),
+        game_speed=100
     )
 
 
