@@ -9,13 +9,15 @@ from rlgym.utils.gamestates import GameState, PlayerData
 class BBReward(RewardFunction):
 
     def __init__(self,
-        ballTouchMultiplier=1.0,              # 1
-        ballAccelerateMultiplier = 1.0,       # 1
-        shotOnGoalMultiplier = 1.0,           # 1
-        positionMultiplier = 0.05,            # 0.05
-        speedMultiplier = 1.0,                # 1
-        heightMultiplier = 1.0,               # 1
-        faceBallMultiplier = 0.1,             # 0.1
+        ballTouchMultiplier         = 0.7,      # 1
+        ballAccelerateMultiplier    = 0.7,      # 1
+        shotOnGoalMultiplier        = 2.5,      # 1
+        positionMultiplier          = 0.05,     # 0.05
+        speedMultiplier             = 1.2,      # 1
+        heightMultiplier            = 1.2,      # 1
+        faceBallMultiplier          = 0.08,     # 0.1
+        ownGoalReward               = -5.0,     # -5.0
+        goalReward                  = 5.0,      # 5.0
     ):
         self.orangeScore = 0
         self.blueScore = 0
@@ -29,7 +31,9 @@ class BBReward(RewardFunction):
         self.positionMultiplier = positionMultiplier                    # r per sec in right position
         self.speedMultiplier = speedMultiplier                          # r per sec at supersonic
         self.heightMultiplier = heightMultiplier                        # r per sec at supersonic
-        self.faceBallMultiplier = faceBallMultiplier                    # r per sec facing ball
+        self.faceBallMultiplier = faceBallMultiplier                    # r per sec at supersonic
+        self.ownGoalReward = ownGoalReward                              # r per own goal
+        self.goalReward = goalReward                                    # r per goal
         ###  REWARD MULTIPLIERS
 
     def reset(self, initial_state: GameState):
@@ -70,9 +74,9 @@ class BBReward(RewardFunction):
         # Reward for facing the ball, bonus for speed. 1r/s supersonic toward ball
         toBall = ballPos - carPos; toBall /= n.linalg.norm(toBall)
         forward = player.car_data.forward()
-        ballVelScalar = n.linalg.norm(ballVel)
         angle = n.arccos(n.dot(toBall, forward))
-        reward += self.faceBallMultiplier * 1/15 * ballVelScalar / SUPERSONIC_THRESHOLD * n.exp(-2 * angle)
+        carVelMultiplier = n.linalg.norm(carVel) * self.speedMultiplier
+        reward += self.faceBallMultiplier * 1/15 * carVelMultiplier / SUPERSONIC_THRESHOLD * n.exp(-2 * angle)
 
 
         if player.ball_touched:
@@ -85,12 +89,14 @@ class BBReward(RewardFunction):
             reward += 1.4 * self.ballTouchMultiplier * heightMul * (2 - int(player.on_ground))
 
             # Reward for shooting ball on net, supersonic at goal = 1r, 
-            ballToGoal = self.blueGoal - ballPos; ballToGoal /= n.linalg.norm(ballToGoal)
+            ballToGoal = self.orangeGoal - ballPos; ballToGoal /= n.linalg.norm(ballToGoal)
+            ballVelScalar = n.linalg.norm(ballVel)
             angle = n.arccos(n.dot(ballToGoal, ballVel / ballVelScalar))
-            reward += ballVelScalar / SUPERSONIC_THRESHOLD * n.exp(-2 * angle)
+            reward += self.shotOnGoalMultiplier * ballVelScalar / SUPERSONIC_THRESHOLD * n.exp(-2 * angle)
 
             # Reward for flipping into ball
-            reward += 0.5 if not player.has_flip else 0
+            if not (player.has_flip and player.has_jump):
+                reward += 1
 
             # Makes sure no false goal rewards are given
             self.touchedBall = True
@@ -112,12 +118,12 @@ class BBReward(RewardFunction):
         # Reward for scoring in the right goal
         if self.blueScore < state.blue_score:
             self.blueScore += 1
-            reward += 1
+            reward += self.goalReward
 
         # Punishment for scoring in the wrong goal
         if self.orangeScore < state.orange_score:
             self.orangeScore += 1
-            reward -= 1
+            reward -= self.ownGoalReward
 
         return reward
     

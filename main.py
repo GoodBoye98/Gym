@@ -30,7 +30,7 @@ def get_match():
 
 def main():
     # Make the default rlgym environment
-    env = SB3MultipleInstanceEnv(match_func_or_matches=get_match, num_instances=6, wait_time=20, force_paging=True)
+    env = SB3MultipleInstanceEnv(match_func_or_matches=get_match, num_instances=11, wait_time=20)
     # env = rlgym.make(
     #     reward_fn=BBReward(),
     #     obs_builder=BBObservations(),
@@ -40,7 +40,7 @@ def main():
     # )
 
     # Initialize PPO from stable_baselines3
-    model = PPO("MlpPolicy", env=env, verbose=1, n_steps=N_STEPS, batch_size=BATCH_SIZE, learning_rate=5e-5, ent_coef=0.01)
+    model = PPO("MlpPolicy", env=env, verbose=1, n_steps=N_STEPS, batch_size=BATCH_SIZE, learning_rate=1e-4, ent_coef=0.01)
     model.set_parameters("init.zip")  # Load parameters from earlier run
 
     # Save checkpoints
