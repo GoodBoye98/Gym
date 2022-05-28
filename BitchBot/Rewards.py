@@ -125,12 +125,18 @@ class BBReward(RewardFunction):
         # Reward for scoring in the right goal
         if self.blueScore < state.blue_score:
             self.blueScore += 1
-            reward += self.goalReward
+            if player.team_num == BLUE_TEAM:
+                reward += self.goalReward
+            else:
+                reward -= self.goalReward
 
         # Punishment for scoring in the wrong goal
         if self.orangeScore < state.orange_score:
             self.orangeScore += 1
-            reward -= self.ownGoalReward
+            if player.team_num == BLUE_TEAM:
+                reward -= self.goalReward
+            else:
+                reward += self.goalReward
 
         return reward
     

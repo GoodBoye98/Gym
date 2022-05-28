@@ -32,7 +32,7 @@ def main():
 
     # Initialize PPO from SB3
     model = PPO("MlpPolicy", env=env, verbose=1, n_steps=N_STEPS, batch_size=BATCH_SIZE, learning_rate=1e-4, ent_coef=0.01)
-    # model.set_parameters("init")  # Load parameters from init
+    model.set_parameters("init")  # Load parameters from init
 
     # Save checkpoints
     callback = CheckpointCallback(round(1e6 / env.num_envs), save_path="Iterations", name_prefix="bb_iteration")
