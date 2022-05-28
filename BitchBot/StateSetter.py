@@ -13,10 +13,17 @@ class BBStateSetter(StateSetter):
         heighMin = 92.75
 
         while True:
-            # Random starting position and rotation
-            x = n.random.uniform(-3500, 3500)
-            y = n.random.uniform(-3500, 3500)
-            yaw = n.random.uniform(-n.pi, n.pi)
+            for car in state_wrapper.cars:
+                # Random starting position and rotation
+                x = n.random.uniform(-3500, 3500)
+                y = n.random.uniform(-3500, 3500)
+                yaw = n.random.uniform(-n.pi, n.pi)
+                car.set_pos(x=x, y=y, z=17.01)
+                car.set_rot(yaw=yaw)
+            
+            # Pick random car
+            car = n.random.choice(state_wrapper.cars)
+            x, y, z = car.position
 
             # Place ball randomly around the car
             rot = n.random.uniform(0, 2 * n.pi)
@@ -27,10 +34,6 @@ class BBStateSetter(StateSetter):
 
             # Check if ball is within statium, otherwise try another random position
             if -3500 < xBall < 3500 and -3500 < yBall < 3500:
-                for car in state_wrapper.cars:
-                    car.set_pos(x=x, y=y, z=17.01)
-                    car.set_rot(yaw=yaw)
-
                 state_wrapper.ball.set_pos(x=xBall, y=yBall, z=zBall)
                 return
 
@@ -43,10 +46,17 @@ class BBStateSetter(StateSetter):
         heighMin = 92.75
 
         while True:
-            # Random starting position and rotation
-            x = n.random.uniform(-3500, 3500)
-            y = n.random.uniform(-3500, 3500)
-            yaw = n.random.uniform(-n.pi, n.pi)
+            for car in state_wrapper.cars:
+                # Random starting position and rotation
+                x = n.random.uniform(-3500, 3500)
+                y = n.random.uniform(-3500, 3500)
+                yaw = n.random.uniform(-n.pi, n.pi)
+                car.set_pos(x=x, y=y, z=17.01)
+                car.set_rot(yaw=yaw)
+            
+            # Pick random car to have ball close
+            car = n.random.choice(state_wrapper.cars)
+            x, y, z = car.position
 
             # Place ball a little in front of the car, randomly in a 200x200 square
             dist = n.array([n.cos(yaw), n.sin(yaw)]) * (n.random.uniform(distMin, distMax))
@@ -58,10 +68,6 @@ class BBStateSetter(StateSetter):
 
             # Check if ball is within statium, otherwise try another random position
             if -3500 < xBall < 3500 and -3500 < yBall < 3500:
-                for car in state_wrapper.cars:
-                    car.set_pos(x=x, y=y, z=17.01)
-                    car.set_rot(yaw=yaw)
-
                 state_wrapper.ball.set_pos(x=xBall, y=yBall, z=zBall)
                 return
 
@@ -72,10 +78,16 @@ class BBStateSetter(StateSetter):
         heightMax = 1900
         heighMin = 150
 
-        # Random starting position and rotation
-        x = n.random.uniform(-3500, 3500)
-        y = n.random.uniform(-3500, 3500)
-        yaw = n.random.uniform(-n.pi, n.pi)
+        # Set random car positions
+        for car in state_wrapper.cars:
+            # Random starting position and rotation
+            x = n.random.uniform(-3500, 3500)
+            y = n.random.uniform(-3500, 3500)
+            yaw = n.random.uniform(-n.pi, n.pi)
+
+            # Apply
+            car.set_pos(x=x, y=y, z=17.01)
+            car.set_rot(yaw=yaw)
 
         # Place ball in random location
         xBall = n.random.uniform(-3500, 3500)
@@ -93,11 +105,7 @@ class BBStateSetter(StateSetter):
         yVelBall *= norm
         zVelBall *= norm
 
-        # Set positions and velocities
-        for car in state_wrapper.cars:
-            car.set_pos(x=x, y=y, z=17.01)
-            car.set_rot(yaw=yaw)
-
+        # Apply position and velocity to ball
         state_wrapper.ball.set_pos(x=xBall, y=yBall, z=zBall)
         state_wrapper.ball.set_lin_vel(x=xVelBall, y=yVelBall, z=zVelBall)
         return
@@ -107,29 +115,35 @@ class BBStateSetter(StateSetter):
         velMax = 2000
         velMin = 10
 
-        # Random starting position and rotation
-        x = n.random.uniform(-3500, 3500)
-        y = n.random.uniform(-3500, 3500)
-        yaw = n.random.uniform(-n.pi, n.pi)
+        for car in state_wrapper.cars:
+            # Random starting position and rotation
+            x = n.random.uniform(-3500, 3500)
+            y = n.random.uniform(-3500, 3500)
+            yaw = n.random.uniform(-n.pi, n.pi)
 
-        cos = n.cos(yaw)
-        sin = n.sin(yaw)
+            cos = n.cos(yaw)
+            sin = n.sin(yaw)
 
-        # Random starting speed
-        speed = n.random.uniform(0, 2000)
-        xVel = cos * speed
-        yVel = sin * speed
+            # Random starting speed
+            speed = n.random.uniform(0, 2000)
+            xVel = cos * speed
+            yVel = sin * speed
+
+            # Set positions and velocities
+            car.set_pos(x=x, y=y, z=17.01)
+            car.set_lin_vel(x=xVel, y=xVel, z=0)
+            car.set_rot(yaw=yaw)
+
+        # Pick random car to have ball
+        car = n.random.choice(state_wrapper.cars)
+        x, y, z = car.position
+        xVel, yVel, zVel = car.linear_velocity
 
         # Move ball on hood a little
         xAdd = cos * n.random.uniform(0, 20)
         yAdd = sin * n.random.uniform(0, 20)
 
-        # Set positions and velocities
-        for car in state_wrapper.cars:
-            car.set_pos(x=x, y=y, z=17.01)
-            car.set_lin_vel(x=xVel, y=xVel, z=0)
-            car.set_rot(yaw=yaw)
-
+        # Set ball on top of hood on random car
         state_wrapper.ball.set_pos(x=x+xAdd, y=y+yAdd, z=150)
         state_wrapper.ball.set_lin_vel(x=xVel, y=xVel, z=0)
         return

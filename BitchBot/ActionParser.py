@@ -10,7 +10,7 @@ class BBActionParser(ActionParser):
     def __init__(self, n_bins=3):
         super().__init__()
 
-        self.possibleActions = []
+        self.actions = []
 
         # Ground actions
         for drive in [-1, 0, 1]:
@@ -29,30 +29,30 @@ class BBActionParser(ActionParser):
                             if powerslide == 1 and (steer == 0 or roll != 0):
                                 continue
 
-                            self.possibleActions.append([drive, steer, yaw, pitch, roll, 0, boost, powerslide])
+                            self.actions.append([drive, steer, yaw, pitch, roll, 0, boost, powerslide])
 
         # Add all types of jumps
-        self.possibleActions.append([1, 0, 0, 0, 0, 1, 0, 0])   # Flip forward
-        self.possibleActions.append([1, 1, 0, 0, 0, 1, 0, 0])   # Flip diagonally right forward
-        self.possibleActions.append([0, 1, 0, 0, 0, 1, 0, 0])   # Flip sideways
-        self.possibleActions.append([-1, 1, 0, 0, 0, 1, 0, 0])  # Flip diagonally right backward
-        self.possibleActions.append([-1, 0, 0, 0, 0, 1, 0, 0])  # Flip backward
-        self.possibleActions.append([-1, -1, 0, 0, 0, 1, 0, 0]) # Flip diagonally left backward
-        self.possibleActions.append([0, -1, 0, 0, 0, 1, 0, 0])  # Flip sideways
-        self.possibleActions.append([1, -1, 0, 0, 0, 1, 0, 0])  # Flip diagonally left forward
-        self.possibleActions.append([0, 0, 0, 0, 0, 1, 0, 0])   # Empty jump
+        self.actions.append([1, 0, 0, 0, 0, 1, 0, 0])   # Flip forward
+        self.actions.append([1, 1, 0, 0, 0, 1, 0, 0])   # Flip diagonally right forward
+        self.actions.append([0, 1, 0, 0, 0, 1, 0, 0])   # Flip sideways
+        self.actions.append([-1, 1, 0, 0, 0, 1, 0, 0])  # Flip diagonally right backward
+        self.actions.append([-1, 0, 0, 0, 0, 1, 0, 0])  # Flip backward
+        self.actions.append([-1, -1, 0, 0, 0, 1, 0, 0]) # Flip diagonally left backward
+        self.actions.append([0, -1, 0, 0, 0, 1, 0, 0])  # Flip sideways
+        self.actions.append([1, -1, 0, 0, 0, 1, 0, 0])  # Flip diagonally left forward
+        self.actions.append([0, 0, 0, 0, 0, 1, 0, 0])   # Empty jump
 
-        self.possibleActions = n.array(self.possibleActions)
+        self.actions = n.array(self.actions)
 
 
     def get_action_space(self) -> gym.spaces.Space:
-        return gym.spaces.Discrete(self.possibleActions.shape[0])
+        return gym.spaces.Discrete(self.actions.shape[0])
 
     def parse_actions(self, actions: n.ndarray, state: GameState) -> n.ndarray:
 
-        if isinstance(actions, n.int64):
-            actions = n.array(self.possibleActions[actions], ndmin=2)
-        else:
-            actions = n.array(self.possibleActions[actions[0]], ndmin=2)
+        # if isinstance(actions, n.int64):
+        #     actions = n.array(self.actions[actions], ndmin=2)
+        # else:
+        actions = self.actions[actions]
 
         return actions
