@@ -72,7 +72,7 @@ class BBReward(RewardFunction):
 
         # Reward for going toward the ball, bonus for going fast. 1r/s supersonic toward ball
         toBall = ballPos - carPos; toBall /= n.linalg.norm(toBall)
-        carVelScalar = n.linalg.norm(carVel)
+        carVelScalar = n.linalg.norm(carVel) + 1e-6
         angle = n.arccos(n.dot(toBall, carVel / carVelScalar))
         carVelMultiplier = carVelScalar * self.speedMultiplier
         reward += self.faceBallMultiplier * 1/15 * carVelMultiplier / SUPERSONIC_THRESHOLD * n.exp(-2 * angle)
@@ -104,7 +104,7 @@ class BBReward(RewardFunction):
                 angle = n.arccos(n.dot(ballToGoal, ballVel / ballVelScalar))
                 reward += self.shotOnGoalMultiplier * ballVelScalar / SUPERSONIC_THRESHOLD * n.exp(-2 * angle)
 
-                # Reward for making y-velocity of ball larger
+                # Reward for making y-velocity of ball smaller
                 reward += -self.yVelocityReward * ballDeltaV[1] / SUPERSONIC_THRESHOLD
 
 
