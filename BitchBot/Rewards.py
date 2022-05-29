@@ -9,11 +9,11 @@ from rlgym.utils.gamestates import GameState, PlayerData
 class BBReward(RewardFunction):
 
     def __init__(self,
-        ballTouchMultiplier         = 1.0,      # 1.0
+        ballTouchMultiplier         = 1.5,      # 1.5
         ballAccelerateMultiplier    = 0.9,      # 0.9
-        shotOnGoalMultiplier        = 1.9,      # 1.9
+        shotOnGoalMultiplier        = 1.3,      # 1.3
         positionMultiplier          = 0.05,     # 0.05
-        speedMultiplier             = 0.9,      # 0.9
+        speedMultiplier             = 0.7,      # 0.7
         heightMultiplier            = 0.9,      # 0.9
         faceBallMultiplier          = 0.2,      # 0.2
         ownGoalReward               = -3.0,     # -3.0
