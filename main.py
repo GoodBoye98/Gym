@@ -1,6 +1,8 @@
+import rlgym
 import numpy as n
 from stable_baselines3 import PPO
-from stable_baselines3.common.callbacks import CheckpointCallback
+from stable_baselines3.common.logger import configure
+from stable_baselines3.common.callbacks import CheckpointCallback, EvalCallback, CallbackList
 from BitchBot import BBReward, BBObservations, BBActionParser, BBStateSetter, BBTerminalCondition
 
 # Imports for multiple instances
@@ -33,9 +35,13 @@ def main():
     # Initialize PPO from SB3
     model = PPO("MlpPolicy", env=env, verbose=1, n_steps=N_STEPS, batch_size=BATCH_SIZE, learning_rate=1e-4, ent_coef=0.01)
     model.set_parameters("init")  # Load parameters from init
+    
+    # Create callbacks
+    callback = CheckpointCallback(save_freq=1e7 // env.num_envs, save_path="Checkpoints", name_prefix="bb_iteration")
 
-    # Save checkpoints
-    callback = CheckpointCallback(round(1e6 / env.num_envs), save_path="Iterations", name_prefix="bb_iteration")
+    # Set logger
+    new_logger = configure("Logs", ["stdout", "csv", "tensorboard"])
+    model.set_logger(new_logger)
 
     # Train! (10 000 000 = 1e7 ~ 1 hr training)
     model.learn(total_timesteps=int(24e7), callback=callback)
