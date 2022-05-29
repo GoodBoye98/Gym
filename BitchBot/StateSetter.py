@@ -1,7 +1,6 @@
 import numpy as n
 from rlgym.utils.state_setters import StateSetter
 from rlgym.utils.state_setters import StateWrapper
-from rlgym.utils.common_values import BLUE_TEAM, ORANGE_TEAM, CEILING_Z
 
 class BBStateSetter(StateSetter):
 
@@ -158,7 +157,8 @@ class BBStateSetter(StateSetter):
         # state_wrapper.ball.set_pos(x=xBall, y=yBall, z=zBall)
         
         # List of all state setters
-        inits = [self._ballAroundCar, self._ballInAir, self._ballInFrontOfCar, self._ballOnCar]
+        # inits = [self._ballAroundCar, self._ballInAir, self._ballInFrontOfCar, self._ballOnCar]
+        inits = [self._ballOnCar]
 
         # Choose random state setter, and use it to set state
         init = n.random.choice(inits)

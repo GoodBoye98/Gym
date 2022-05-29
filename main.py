@@ -37,8 +37,8 @@ def main():
     # Save checkpoints
     callback = CheckpointCallback(round(1e6 / env.num_envs), save_path="Iterations", name_prefix="bb_iteration")
 
-    # Train! (~24 hrs)
-    model.learn(total_timesteps=int(2e8), callback=callback)
+    # Train! (10 000 000 = 1e7 ~ 1 hr training)
+    model.learn(total_timesteps=int(24e7), callback=callback)
 
 
 if __name__ == '__main__':
