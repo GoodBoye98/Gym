@@ -135,12 +135,13 @@ class BBStateSetter(StateSetter):
 
         # Pick random car to have ball
         car = n.random.choice(state_wrapper.cars)
+        yaw = car.rotation[1]
         x, y, z = car.position
         xVel, yVel, zVel = car.linear_velocity
 
         # Move ball on hood a little
-        xAdd = cos * n.random.uniform(0, 20)
-        yAdd = sin * n.random.uniform(0, 20)
+        xAdd = n.cos(yaw) * 15 + n.random.uniform(-20, 20)
+        yAdd = n.sin(yaw) * 15 + n.random.uniform(-20, 20)
 
         # Set ball on top of hood on random car
         state_wrapper.ball.set_pos(x=x+xAdd, y=y+yAdd, z=150)

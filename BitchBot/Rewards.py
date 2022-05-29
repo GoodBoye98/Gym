@@ -1,6 +1,5 @@
-import copy
-from turtle import speed
 import numpy as n
+from turtle import speed
 from rlgym.utils import math
 from rlgym.utils.common_values import ORANGE_GOAL_CENTER, BLUE_GOAL_CENTER, SUPERSONIC_THRESHOLD, CEILING_Z, ORANGE_TEAM, BLUE_TEAM
 from rlgym.utils.reward_functions import RewardFunction
@@ -9,34 +8,32 @@ from rlgym.utils.gamestates import GameState, PlayerData
 class BBReward(RewardFunction):
 
     def __init__(self,
-        ballTouchMultiplier         = 1.5,      # 1.5
-        ballAccelerateMultiplier    = 0.9,      # 0.9
-        shotOnGoalMultiplier        = 1.3,      # 1.3
-        positionMultiplier          = 0.05,     # 0.05
-        speedMultiplier             = 0.7,      # 0.7
-        heightMultiplier            = 0.9,      # 0.9
-        faceBallMultiplier          = 0.2,      # 0.2
-        ownGoalReward               = -3.0,     # -3.0
-        goalReward                  = 3.0,      # 3.0
-        yVelocityReward             = 0.2,      # 0.2
+        ballTouchReward         = 1.5,      # 1.5
+        ballAccelerateReward    = 0.9,      # 0.9
+        shotOnGoalReward        = 2.0,      # 2.0
+        ownGoalReward           = -3.0,     # -3.0
+        goalReward              = 2.0,      # 2.0
+        yVelocityReward         = 0.4,      # 0.4
+        speedReward             = 0.1,      # 0.1
+        towardBallReward        = 0.1,      # 0.1
+        saveBoostReward         = 0.1,      # 0.1
     ):
         self.orangeScore = 0
         self.blueScore = 0
         self.orangeGoal = n.array(ORANGE_GOAL_CENTER, dtype=n.float32)
         self.blueGoal   = n.array(BLUE_GOAL_CENTER, dtype=n.float32)
 
-        ###  REWARD MULTIPLIERS
-        self.ballTouchMultiplier = ballTouchMultiplier                  # r per sec touching ball
-        self.ballAccelerateMultiplier = ballAccelerateMultiplier        # r per 0->supersonic
-        self.shotOnGoalMultiplier = shotOnGoalMultiplier                # r shot straight at net at supersonic
-        self.positionMultiplier = positionMultiplier                    # r per sec in right position
-        self.speedMultiplier = speedMultiplier                          # r per sec at supersonic
-        self.heightMultiplier = heightMultiplier                        # r per sec at supersonic
-        self.faceBallMultiplier = faceBallMultiplier                    # r per sec at supersonic
-        self.ownGoalReward = ownGoalReward                              # r per own goal
-        self.goalReward = goalReward                                    # r per goal
-        self.yVelocityReward = yVelocityReward                          # r per positive supersonic velocity change in
-        ###  REWARD MULTIPLIERS
+        ###  REWARD RewardS
+        self.ballTouchReward = ballTouchReward                  # r per sec touching ball
+        self.ballAccelerateReward = ballAccelerateReward        # r per 0->supersonic
+        self.shotOnGoalReward = shotOnGoalReward                # r shot straight at net at supersonic
+        self.ownGoalReward = ownGoalReward                      # r per own goal
+        self.goalReward = goalReward                            # r per goal
+        self.speedReward = speedReward                          # r per sec at supersonic
+        self.towardBallReward = towardBallReward                # r per sec at ball
+        self.yVelocityReward = yVelocityReward                  # r per positive supersonic velocity change in
+        self.saveBoostReward = saveBoostReward                  # r per sec with sqrt(boost)
+        ###  REWARD RewardS
 
     def reset(self, initial_state: GameState):
         self.prevCarPos = n.array([0, 0, 0], dtype=n.float32)
@@ -70,22 +67,27 @@ class BBReward(RewardFunction):
 
         ### START OF REWARDS ###
 
-        # Reward for going toward the ball, bonus for going fast. 1r/s supersonic toward ball
+        # Reward for moving toward the ball
         toBall = ballPos - carPos; toBall /= n.linalg.norm(toBall)
         carVelScalar = n.linalg.norm(carVel) + 1e-6
         angle = n.arccos(n.dot(toBall, carVel / carVelScalar))
-        carVelMultiplier = carVelScalar * self.speedMultiplier
-        reward += self.faceBallMultiplier * 1/15 * carVelMultiplier / SUPERSONIC_THRESHOLD * n.exp(-2 * angle)
+        reward += 0.0667 * self.towardBallReward * n.exp(-2 * angle)
+
+        # Reward for going fast
+        reward += 0.0667 * self.speedReward * carVelScalar / SUPERSONIC_THRESHOLD
+
+        # Reward for saving boost
+        reward += 0.0667 * self.saveBoostReward * n.sqrt(player.boost_amount / 100)
 
 
         if player.ball_touched:
             # Reward for touching the ball, higher is better. Double reward if in air
             heightMul = ballPos[2] / (CEILING_Z - 92.75)  # between 0.05 and 1
-            reward += 1.4 * self.ballTouchMultiplier * heightMul * (2 - int(player.on_ground))
+            reward += 1.4 * self.ballTouchReward * heightMul * (2 - int(player.on_ground))
 
             # Reward for accelerating the ball, 0 -> supersonic = 1r  ##
             ballDeltaV = ballVel - self.prevBallVel
-            reward += self.ballAccelerateMultiplier *  n.linalg.norm(ballDeltaV) / SUPERSONIC_THRESHOLD
+            reward += self.ballAccelerateReward *  n.linalg.norm(ballDeltaV) / SUPERSONIC_THRESHOLD
 
 
             if player.team_num == BLUE_TEAM:
@@ -93,7 +95,7 @@ class BBReward(RewardFunction):
                 ballToGoal = self.orangeGoal - ballPos; ballToGoal /= n.linalg.norm(ballToGoal)
                 ballVelScalar = n.linalg.norm(ballVel)
                 angle = n.arccos(n.dot(ballToGoal, ballVel / ballVelScalar))
-                reward += self.shotOnGoalMultiplier * ballVelScalar / SUPERSONIC_THRESHOLD * n.exp(-2 * angle)
+                reward += self.shotOnGoalReward * ballVelScalar / SUPERSONIC_THRESHOLD * n.exp(-2 * angle)
 
                 # Reward for making y-velocity of ball larger
                 reward += self.yVelocityReward * ballDeltaV[1] / SUPERSONIC_THRESHOLD
@@ -102,7 +104,7 @@ class BBReward(RewardFunction):
                 ballToGoal = self.blueGoal - ballPos; ballToGoal /= n.linalg.norm(ballToGoal)
                 ballVelScalar = n.linalg.norm(ballVel)
                 angle = n.arccos(n.dot(ballToGoal, ballVel / ballVelScalar))
-                reward += self.shotOnGoalMultiplier * ballVelScalar / SUPERSONIC_THRESHOLD * n.exp(-2 * angle)
+                reward += self.shotOnGoalReward * ballVelScalar / SUPERSONIC_THRESHOLD * n.exp(-2 * angle)
 
                 # Reward for making y-velocity of ball smaller
                 reward += -self.yVelocityReward * ballDeltaV[1] / SUPERSONIC_THRESHOLD
@@ -173,20 +175,20 @@ class BBReward(RewardFunction):
         else:  # Ball on blue side
             toGoal = self.orangeGoal - carPos; toGoal /= n.linalg.norm(toGoal)
             cosAngle = -n.dot(toGoal, toBall)  # cos of angle between vectors
-        reward += self.positionMultiplier * 1 / 15 * n.exp(-2 * n.arccos(cosAngle))
+        reward += self.positionReward * 1 / 15 * n.exp(-2 * n.arccos(cosAngle))
 
 
 
         # Reward for facing the ball, (multiplied with carspeed)
         forward = player.car_data.forward()  # Vector in forward direction of car
         toBall = ballPos - carPos; toBall /= n.sqrt(n.dot(toBall, toBall))  # Normalized vetor from car to ball
-        speedMultiplier = n.dot(carVel, forward) / 1410  # Car speed, normalized to 1 at max speed w/o boost
-        facingMultiplier = n.dot(forward, toBall)
-        rew_add = 0.015 * facingMultiplier * speedMultiplier
+        speedReward = n.dot(carVel, forward) / 1410  # Car speed, normalized to 1 at max speed w/o boost
+        facingReward = n.dot(forward, toBall)
+        rew_add = 0.015 * facingReward * speedReward
 
         if rew_add > 0:
              # Reduce reward for following the ball backwards
-            if facingMultiplier < 0 and speedMultiplier < 0:
+            if facingReward < 0 and speedReward < 0:
                 rew_add *= 0.7
 
             reward += rew_add
