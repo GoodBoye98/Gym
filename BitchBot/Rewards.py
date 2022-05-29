@@ -14,8 +14,8 @@ class BBReward(RewardFunction):
         ownGoalReward           = -3.0,     # -3.0
         goalReward              = 2.0,      # 2.0
         yVelocityReward         = 0.4,      # 0.4
-        speedReward             = 0.1,      # 0.1
-        towardBallReward        = 0.1,      # 0.1
+        speedReward             = 0.0,      # 0.1 -> 0.0
+        towardBallReward        = 0.0,      # 0.1 -> 0.0
         saveBoostReward         = 0.1,      # 0.1
     ):
         self.orangeScore = 0
@@ -67,14 +67,14 @@ class BBReward(RewardFunction):
 
         ### START OF REWARDS ###
 
-        # Reward for moving toward the ball
-        toBall = ballPos - carPos; toBall /= n.linalg.norm(toBall)
-        carVelScalar = n.linalg.norm(carVel) + 1e-6
-        angle = n.arccos(n.dot(toBall, carVel / carVelScalar))
-        reward += 0.0667 * self.towardBallReward * n.exp(-2 * angle)
+        # # Reward for moving toward the ball
+        # toBall = ballPos - carPos; toBall /= n.linalg.norm(toBall)
+        # carVelScalar = n.linalg.norm(carVel) + 1e-6
+        # angle = n.arccos(n.dot(toBall, carVel / carVelScalar))
+        # reward += 0.0667 * self.towardBallReward * n.exp(-2 * angle)
 
-        # Reward for going fast
-        reward += 0.0667 * self.speedReward * carVelScalar / SUPERSONIC_THRESHOLD
+        # # Reward for going fast
+        # reward += 0.0667 * self.speedReward * carVelScalar / SUPERSONIC_THRESHOLD
 
         # Reward for saving boost
         reward += 0.0667 * self.saveBoostReward * n.sqrt(player.boost_amount / 100)
