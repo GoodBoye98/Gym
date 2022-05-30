@@ -8,15 +8,17 @@ from rlgym.utils.gamestates import GameState, PlayerData
 class BBReward(RewardFunction):
 
     def __init__(self,
-        ballTouchReward         = 1.5,      # 1.5
-        ballAccelerateReward    = 0.9,      # 0.9
-        shotOnGoalReward        = 2.0,      # 2.0
-        ownGoalReward           = -3.0,     # -3.0
+        ballTouchReward         = 1.0,      # 1.0
+        ballAccelerateReward    = 1.0,      # 1.0
+        shotOnGoalReward        = 1.5,      # 1.5
+        shotOnOwnGoalReward     = -0.8,     # -0.8
         goalReward              = 2.0,      # 2.0
-        yVelocityReward         = 0.4,      # 0.4
-        speedReward             = 0.0,      # 0.1 -> 0.0
-        towardBallReward        = 0.0,      # 0.1 -> 0.0
-        saveBoostReward         = 0.1,      # 0.1
+        ownGoalReward           = -2.0,     # -2.0
+        yVelocityReward         = 0.2,      # 0.2
+        speedReward             = 0.0,      # 0.0
+        towardBallReward        = 0.02,     # 0.02
+        saveBoostReward         = 0.15,     # 0.15
+        rewardShare             = 0.75,     # 0.75
     ):
         self.orangeScore = 0
         self.blueScore = 0
@@ -27,13 +29,18 @@ class BBReward(RewardFunction):
         self.ballTouchReward = ballTouchReward                  # r per sec touching ball
         self.ballAccelerateReward = ballAccelerateReward        # r per 0->supersonic
         self.shotOnGoalReward = shotOnGoalReward                # r shot straight at net at supersonic
-        self.ownGoalReward = ownGoalReward                      # r per own goal
+        self.shotOnOwnGoalReward = shotOnOwnGoalReward          # r shot straight at own net at supersonic
         self.goalReward = goalReward                            # r per goal
+        self.ownGoalReward = ownGoalReward                      # r per own goal
         self.speedReward = speedReward                          # r per sec at supersonic
         self.towardBallReward = towardBallReward                # r per sec at ball
         self.yVelocityReward = yVelocityReward                  # r per positive supersonic velocity change in
         self.saveBoostReward = saveBoostReward                  # r per sec with sqrt(boost)
+        self.rewardShare = rewardShare                          # r shared between temmates
         ###  REWARD RewardS
+
+        self.orangeReward = 0
+        self.blueReward = 0
 
     def reset(self, initial_state: GameState):
         self.prevCarPos = n.array([0, 0, 0], dtype=n.float32)
@@ -43,6 +50,9 @@ class BBReward(RewardFunction):
         self.prevDist = 0
         self.touchedBall = False
         self.firstIter = True
+
+        self.orangeReward = 0
+        self.blueReward = 0
 
 
     def get_reward(self, player: PlayerData, state: GameState, previous_action: n.ndarray) -> float:
@@ -67,18 +77,17 @@ class BBReward(RewardFunction):
 
         ### START OF REWARDS ###
 
-        # # Reward for moving toward the ball
-        # toBall = ballPos - carPos; toBall /= n.linalg.norm(toBall)
-        # carVelScalar = n.linalg.norm(carVel) + 1e-6
-        # angle = n.arccos(n.dot(toBall, carVel / carVelScalar))
-        # reward += 0.0667 * self.towardBallReward * n.exp(-2 * angle)
+        # Reward for moving toward the ball
+        toBall = ballPos - carPos; toBall /= n.linalg.norm(toBall)
+        carVelScalar = n.linalg.norm(carVel) + 1e-6
+        angle = n.arccos(n.dot(toBall, carVel / carVelScalar))
+        reward += 0.0667 * self.towardBallReward * n.exp(-2 * angle)
 
         # # Reward for going fast
         # reward += 0.0667 * self.speedReward * carVelScalar / SUPERSONIC_THRESHOLD
 
         # Reward for saving boost
         reward += 0.0667 * self.saveBoostReward * n.sqrt(player.boost_amount / 100)
-
 
         if player.ball_touched:
             # Reward for touching the ball, higher is better. Double reward if in air
@@ -89,7 +98,6 @@ class BBReward(RewardFunction):
             ballDeltaV = ballVel - self.prevBallVel
             reward += self.ballAccelerateReward *  n.linalg.norm(ballDeltaV) / SUPERSONIC_THRESHOLD
 
-
             if player.team_num == BLUE_TEAM:
                 # Reward for shooting ball on net, supersonic at goal = 1r, 
                 ballToGoal = self.orangeGoal - ballPos; ballToGoal /= n.linalg.norm(ballToGoal)
@@ -97,8 +105,13 @@ class BBReward(RewardFunction):
                 angle = n.arccos(n.dot(ballToGoal, ballVel / ballVelScalar))
                 reward += self.shotOnGoalReward * ballVelScalar / SUPERSONIC_THRESHOLD * n.exp(-2 * angle)
 
+                # Punishment for shooting on own net
+                angle = n.abs(angle - n.pi)
+                reward += self.shotOnOwnGoalReward * ballVelScalar / SUPERSONIC_THRESHOLD * n.exp(-2 * angle)
+
                 # Reward for making y-velocity of ball larger
                 reward += self.yVelocityReward * ballDeltaV[1] / SUPERSONIC_THRESHOLD
+                self.blueReward += reward  # Setup for reward sharing
             else:
                 # Reward for shooting ball on net, supersonic at goal = 1r, 
                 ballToGoal = self.blueGoal - ballPos; ballToGoal /= n.linalg.norm(ballToGoal)
@@ -106,8 +119,13 @@ class BBReward(RewardFunction):
                 angle = n.arccos(n.dot(ballToGoal, ballVel / ballVelScalar))
                 reward += self.shotOnGoalReward * ballVelScalar / SUPERSONIC_THRESHOLD * n.exp(-2 * angle)
 
+                # Punishment for shooting on own net
+                angle = n.abs(angle - n.pi)
+                reward += self.shotOnOwnGoalReward * ballVelScalar / SUPERSONIC_THRESHOLD * n.exp(-2 * angle)
+
                 # Reward for making y-velocity of ball smaller
                 reward += -self.yVelocityReward * ballDeltaV[1] / SUPERSONIC_THRESHOLD
+                self.orangeReward += reward  # Setup for reward sharing
 
 
             # Makes sure no false goal rewards are given
@@ -122,7 +140,9 @@ class BBReward(RewardFunction):
         if not self.touchedBall:
             return 0
 
-        reward = 0
+        # Initialize with shared reward values
+        reward = self.blueReward if player.team_num == BLUE_TEAM else self.orangeReward
+        reward *= self.rewardShare
 
         # Reward for scoring in the right goal
         if self.blueScore < state.blue_score:

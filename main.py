@@ -1,3 +1,4 @@
+from re import U
 import rlgym
 import numpy as n
 from stable_baselines3 import PPO
@@ -24,17 +25,18 @@ def get_match():
         action_parser=BBActionParser(),
         terminal_conditions=BBTerminalCondition(N_STEPS),
         game_speed=100,
-        spawn_opponents=True
+        team_size=2,
+        spawn_opponents=True,
     )
 
 
 def main():
     # Make the vectorized rlgym environment
-    env = SB3MultipleInstanceEnv(match_func_or_matches=get_match, num_instances=10, wait_time=20)
+    env = SB3MultipleInstanceEnv(match_func_or_matches=get_match, num_instances=10, wait_time=15)
 
     # Initialize PPO from SB3
     model = PPO("MlpPolicy", env=env, verbose=1, n_steps=N_STEPS, batch_size=BATCH_SIZE, learning_rate=1e-4, ent_coef=0.01)
-    model.set_parameters("init")  # Load parameters from init
+    # model.set_parameters("init")  # Load parameters from init
     
     # Create callbacks
     callback = CheckpointCallback(save_freq=1e7 // env.num_envs, save_path="Checkpoints", name_prefix="bb_iteration")
