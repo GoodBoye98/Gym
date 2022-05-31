@@ -41,6 +41,9 @@ class BBObservations(ObsBuilder):
         obs[32]  = player.has_flip
         obs[33]  = player.ball_touched
 
+        # Flipt orientation vectors for orange team
+        flip = self.flip if player.team_num == ORANGE_TEAM else 1
+
         # Give information about teammates car
         i = 0
         for other_player in state.players:
@@ -48,8 +51,8 @@ class BBObservations(ObsBuilder):
                 continue
             # Give information about opponents or teammates
             obs[34+i*15:37+i*15] = CoBMat @ (other_player.car_data.position - player.car_data.position)
-            obs[37+i*15:40+i*15] = other_player.car_data.forward()
-            obs[40+i*15:43+i*15] = other_player.car_data.up()
+            obs[37+i*15:40+i*15] = other_player.car_data.forward() * flip
+            obs[40+i*15:43+i*15] = other_player.car_data.up() * flip
             obs[43+i*15:46+i*15] = CoBMat @ other_player.car_data.linear_velocity
 
             # Misc. car data
@@ -64,8 +67,8 @@ class BBObservations(ObsBuilder):
                 continue
             # Give information about opponents or teammates
             obs[34+i*15:37+i*15] = CoBMat @ (other_player.car_data.position - player.car_data.position)
-            obs[37+i*15:40+i*15] = other_player.car_data.forward()
-            obs[40+i*15:43+i*15] = other_player.car_data.up()
+            obs[37+i*15:40+i*15] = other_player.car_data.forward() * flip
+            obs[40+i*15:43+i*15] = other_player.car_data.up() * flip
             obs[43+i*15:46+i*15] = CoBMat @ other_player.car_data.linear_velocity
 
             # Misc. car data
