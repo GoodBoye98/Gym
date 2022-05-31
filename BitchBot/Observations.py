@@ -7,17 +7,20 @@ class BBObservations(ObsBuilder):
     def __init__(self):
         self.orangeGoal = n.array(ORANGE_GOAL_CENTER, dtype=n.float32)
         self.blueGoal   = n.array(BLUE_GOAL_CENTER, dtype=n.float32)
-        self.boostLocatins = n.array(BOOST_LOCATIONS)
+        self.boostLocationsBlue   = n.array(BOOST_LOCATIONS)
+        self.boostLocationsOrange = n.array(BOOST_LOCATIONS)
         self.normalizing = 1000
-        self.flipOrange = n.array([1, -1, 1])
-        self.flipBlue = n.array([1, 1, 1])
+        self.flip = n.array([-1, -1, 1])
+
+        for i in range(self.boostLocationsOrange.shape[0]):
+            self.boostLocationsOrange[i] *= self.flip
 
     def reset(self, initial_state: GameState):
         pass
 
     def build_obs(self, player: PlayerData, state: GameState, previous_action: n.ndarray) -> n.ndarray:
         # Reserve values in array
-        obs = n.zeros(34 + 15 * (len(state.players) - 1) + 3 * self.boostLocatins.shape[0], dtype=n.float32)
+        obs = n.zeros(34 + 15 * (len(state.players) - 1) + 3 * self.boostLocationsBlue.shape[0], dtype=n.float32)
 
         # Make the car's orientation as a basis
         carBasis = n.column_stack((player.car_data.forward(), player.car_data.up(), player.car_data.left()))
@@ -29,20 +32,6 @@ class BBObservations(ObsBuilder):
 
         # Add information about previous actions
         obs[12:20] = previous_action
-
-        # Add information about goal positions (in car's basis)
-        if player.team_num == BLUE_TEAM:  # Set opponent goal at 6-9 and own goal at 9-12
-            self.flip = self.flipBlue
-            obs[6:9] = CoBMat @ (self.orangeGoal - player.car_data.position)
-            obs[9:12] = CoBMat @ (self.blueGoal - player.car_data.position)
-        if player.team_num == ORANGE_TEAM:  # Set opponent goal at 6-9 and own goal at 9-12
-            self.flip = self.flipOrange
-            obs[6:9] = CoBMat @ (self.blueGoal - player.car_data.position)
-            obs[9:12] = CoBMat @ (self.orangeGoal - player.car_data.position)
-
-        # Give information about self
-        obs[20:23] = player.car_data.forward() * self.flip  # Orientation of car, y-axis flipped
-        obs[23:26] = player.car_data.up() * self.flip  # Orientation of car, y-axis flipped
         obs[26:29] = CoBMat @ player.car_data.linear_velocity  # Current velocity
 
         # Misc. car data
@@ -59,8 +48,8 @@ class BBObservations(ObsBuilder):
                 continue
             # Give information about opponents or teammates
             obs[34+i*15:37+i*15] = CoBMat @ (other_player.car_data.position - player.car_data.position)
-            obs[37+i*15:40+i*15] = other_player.car_data.forward() * self.flip * self.normalizing
-            obs[40+i*15:43+i*15] = other_player.car_data.up() * self.flip * self.normalizing
+            obs[37+i*15:40+i*15] = other_player.car_data.forward()
+            obs[40+i*15:43+i*15] = other_player.car_data.up()
             obs[43+i*15:46+i*15] = CoBMat @ other_player.car_data.linear_velocity
 
             # Misc. car data
@@ -75,8 +64,8 @@ class BBObservations(ObsBuilder):
                 continue
             # Give information about opponents or teammates
             obs[34+i*15:37+i*15] = CoBMat @ (other_player.car_data.position - player.car_data.position)
-            obs[37+i*15:40+i*15] = other_player.car_data.forward() * self.flip * self.normalizing
-            obs[40+i*15:43+i*15] = other_player.car_data.up() * self.flip * self.normalizing
+            obs[37+i*15:40+i*15] = other_player.car_data.forward()
+            obs[40+i*15:43+i*15] = other_player.car_data.up()
             obs[43+i*15:46+i*15] = CoBMat @ other_player.car_data.linear_velocity
 
             # Misc. car data
@@ -85,9 +74,31 @@ class BBObservations(ObsBuilder):
             obs[48+i*15]  = other_player.has_flip
             i += 1
 
-        # Give location of boost-pads
-        for j, boost in enumerate(self.boostLocatins):
-            obs[34+i*15+j*3:37+i*15+j*3] = CoBMat @ (boost - player.car_data.position)
+        # Add information about goal positions (in car's basis)
+        if player.team_num == BLUE_TEAM:  # Set opponent goal at 6-9 and own goal at 9-12
+            obs[6:9] = CoBMat @ (self.orangeGoal - player.car_data.position)
+            obs[9:12] = CoBMat @ (self.blueGoal - player.car_data.position)
+
+            # Give information about self
+            obs[20:23] = player.car_data.forward()  # Orientation of car
+            obs[23:26] = player.car_data.up()  # Orientation of car
+
+            # Give location of boost-pads
+            for j, boost in enumerate(self.boostLocationsBlue):
+                obs[34+i*15+j*3:37+i*15+j*3] = CoBMat @ (boost - player.car_data.position)
+
+        if player.team_num == ORANGE_TEAM:  # Set opponent goal at 6-9 and own goal at 9-12
+            obs[6:9] = CoBMat @ (self.blueGoal - player.car_data.position)
+            obs[9:12] = CoBMat @ (self.orangeGoal - player.car_data.position)
+
+            # Give information about self
+            obs[20:23] = player.car_data.forward() * self.flip # Orientation of car, x & y-axis flipped
+            obs[23:26] = player.car_data.up() * self.flip # Orientation of car, x & y-axis flipped
+            
+            # Give location of boost-pads
+            for j, boost in enumerate(self.boostLocationsOrange):
+                obs[34+i*15+j*3:37+i*15+j*3] = CoBMat @ (boost - player.car_data.position)
+
 
         # Return data
         return obs
