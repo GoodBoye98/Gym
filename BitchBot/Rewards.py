@@ -18,6 +18,8 @@ class BBReward(RewardFunction):
         towardBallReward        = 0.01,     # 0.01
         saveBoostReward         = 0.15,     # 0.15
         rewardShare             = 0.75,     # 0.75
+        defendingReward         = 0.05,     # 0.05
+        attackingReward         = 0.03      # 0.03
     ):
         self.orangeScore = 0
         self.blueScore = 0
@@ -35,6 +37,8 @@ class BBReward(RewardFunction):
         self.yVelocityReward = yVelocityReward                  # r per positive supersonic velocity change in
         self.saveBoostReward = saveBoostReward                  # r per sec with sqrt(boost)
         self.rewardShare = rewardShare                          # r shared between temmates
+        self.defendingReward = defendingReward                  # r for being in defending position
+        self.attackingReward = attackingReward                  # r for being in attacking position
         ###  REWARD RewardS
 
         self.orangeReward = 0
@@ -110,12 +114,12 @@ class BBReward(RewardFunction):
                 # Reward for being between the ball and own net
                 toOwnGoal = BLUE_GOAL_CENTER - carPos; toOwnGoal /= n.linalg.norm(toOwnGoal)
                 angle = n.abs(n.arccos(n.dot(toOwnGoal, toBall)) - n.pi)
-                reward += 0.05 / 15 * n.exp(-2 * angle) * positionScalar
+                reward += self.defendingReward / 15 * n.exp(-2 * angle) * positionScalar
 
                 # Reward for being in position to shoot on net
                 toGoal = ORANGE_GOAL_CENTER - carPos; toGoal /= n.linalg.norm(toGoal)
                 angle = n.arccos(n.dot(toGoal, toBall))
-                reward += 0.03 / 15 * n.exp(-2 * angle) * (1 - positionScalar)
+                reward += self.attackingReward / 15 * n.exp(-2 * angle) * (1 - positionScalar)
 
                 self.blueReward += reward  # Setup for reward sharing
             else:
@@ -132,12 +136,12 @@ class BBReward(RewardFunction):
                 # Reward for being between the ball and own net
                 toOwnGoal = ORANGE_GOAL_CENTER - carPos; toOwnGoal /= n.linalg.norm(toOwnGoal)
                 angle = n.abs(n.arccos(n.dot(toOwnGoal, toBall)) - n.pi)
-                reward += 0.05 / 15 * n.exp(-2 * angle) * positionScalar
+                reward += self.defendingReward / 15 * n.exp(-2 * angle) * positionScalar
 
                 # Reward for being in position to shoot on net
                 toGoal = BLUE_GOAL_CENTER - carPos; toGoal /= n.linalg.norm(toGoal)
                 angle = n.arccos(n.dot(toGoal, toBall))
-                reward += 0.03 / 15 * n.exp(-2 * angle) * (1 - positionScalar)
+                reward += self.attackingReward / 15 * n.exp(-2 * angle) * (1 - positionScalar)
 
                 self.orangeReward += reward  # Setup for reward sharing
 
