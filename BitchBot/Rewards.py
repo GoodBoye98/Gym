@@ -1,5 +1,5 @@
 import numpy as n
-from turtle import speed
+from turtle import position, speed
 from rlgym.utils import math
 from rlgym.utils.common_values import ORANGE_GOAL_CENTER, BLUE_GOAL_CENTER, SUPERSONIC_THRESHOLD, CEILING_Z, ORANGE_TEAM, BLUE_TEAM
 from rlgym.utils.reward_functions import RewardFunction
@@ -8,15 +8,14 @@ from rlgym.utils.gamestates import GameState, PlayerData
 class BBReward(RewardFunction):
 
     def __init__(self,
-        ballTouchReward         = 1.0,      # 1.0
-        ballAccelerateReward    = 1.0,      # 1.0
-        shotOnGoalReward        = 1.5,      # 1.5
-        shotOnOwnGoalReward     = -0.8,     # -0.8
+        ballTouchReward         = 0.7,      # 0.7
+        ballAccelerateReward    = 0.8,      # 0.8
+        shotOnGoalReward        = 1.2,      # 1.2
         goalReward              = 2.0,      # 2.0
-        ownGoalReward           = -2.0,     # -2.0
-        yVelocityReward         = 0.2,      # 0.2
+        ownGoalReward           = -0.5,     # -0.5
+        yVelocityReward         = 0.0,      # 0.0
         speedReward             = 0.0,      # 0.0
-        towardBallReward        = 0.02,     # 0.02
+        towardBallReward        = 0.01,     # 0.01
         saveBoostReward         = 0.15,     # 0.15
         rewardShare             = 0.75,     # 0.75
     ):
@@ -29,7 +28,6 @@ class BBReward(RewardFunction):
         self.ballTouchReward = ballTouchReward                  # r per sec touching ball
         self.ballAccelerateReward = ballAccelerateReward        # r per 0->supersonic
         self.shotOnGoalReward = shotOnGoalReward                # r shot straight at net at supersonic
-        self.shotOnOwnGoalReward = shotOnOwnGoalReward          # r shot straight at own net at supersonic
         self.goalReward = goalReward                            # r per goal
         self.ownGoalReward = ownGoalReward                      # r per own goal
         self.speedReward = speedReward                          # r per sec at supersonic
@@ -105,15 +103,20 @@ class BBReward(RewardFunction):
                 angle = n.arccos(n.dot(ballToGoal, ballVel / ballVelScalar))
                 reward += self.shotOnGoalReward * ballVelScalar / SUPERSONIC_THRESHOLD * n.exp(-2 * angle)
 
-                # Punishment for shooting on own net
-                angle = n.abs(angle - n.pi)
-                reward += self.shotOnOwnGoalReward * ballVelScalar / SUPERSONIC_THRESHOLD * n.exp(-2 * angle)
 
-                # Reward for making y-velocity of ball larger
-                reward += self.yVelocityReward * ballDeltaV[1] / SUPERSONIC_THRESHOLD
+                # 1 when ball is in own goal, 0 in opposition goal
+                positionScalar = (5120 - ballPos[1]) / 10240
 
-                # Reward for being on the right side of the ball
-                self.reward += 0.02 / 15 if carPos[1] < ballPos[1] else -0.01 / 15
+                # Reward for being between the ball and own net
+                toOwnGoal = BLUE_GOAL_CENTER - carPos; toOwnGoal /= n.linalg.norm(toOwnGoal)
+                angle = n.abs(n.arccos(n.dot(toOwnGoal, toBall)) - n.pi)
+                reward += 0.05 / 15 * n.exp(-2 * angle) * positionScalar
+
+                # Reward for being in position to shoot on net
+                toGoal = ORANGE_GOAL_CENTER - carPos; toGoal /= n.linalg.norm(toGoal)
+                angle = n.arccos(n.dot(toGoal, toBall))
+                reward += 0.03 / 15 * n.exp(-2 * angle) * (1 - positionScalar)
+
                 self.blueReward += reward  # Setup for reward sharing
             else:
                 # Reward for shooting ball on net, supersonic at goal = 1r, 
@@ -122,15 +125,20 @@ class BBReward(RewardFunction):
                 angle = n.arccos(n.dot(ballToGoal, ballVel / ballVelScalar))
                 reward += self.shotOnGoalReward * ballVelScalar / SUPERSONIC_THRESHOLD * n.exp(-2 * angle)
 
-                # Punishment for shooting on own net
-                angle = n.abs(angle - n.pi)
-                reward += self.shotOnOwnGoalReward * ballVelScalar / SUPERSONIC_THRESHOLD * n.exp(-2 * angle)
 
-                # Reward for making y-velocity of ball smaller
-                reward += -self.yVelocityReward * ballDeltaV[1] / SUPERSONIC_THRESHOLD
+                # 1 when ball is in own goal, 0 in opposition goal
+                positionScalar = (5120 + ballPos[1]) / 10240
 
-                # Reward for being on the right side of the ball
-                self.reward += 0.02 / 15 if carPos[1] > ballPos[1] else -0.01 / 15
+                # Reward for being between the ball and own net
+                toOwnGoal = ORANGE_GOAL_CENTER - carPos; toOwnGoal /= n.linalg.norm(toOwnGoal)
+                angle = n.abs(n.arccos(n.dot(toOwnGoal, toBall)) - n.pi)
+                reward += 0.05 / 15 * n.exp(-2 * angle) * positionScalar
+
+                # Reward for being in position to shoot on net
+                toGoal = BLUE_GOAL_CENTER - carPos; toGoal /= n.linalg.norm(toGoal)
+                angle = n.arccos(n.dot(toGoal, toBall))
+                reward += 0.03 / 15 * n.exp(-2 * angle) * (1 - positionScalar)
+
                 self.orangeReward += reward  # Setup for reward sharing
 
 
