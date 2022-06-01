@@ -111,6 +111,9 @@ class BBReward(RewardFunction):
 
                 # Reward for making y-velocity of ball larger
                 reward += self.yVelocityReward * ballDeltaV[1] / SUPERSONIC_THRESHOLD
+
+                # Reward for being on the right side of the ball
+                self.reward += 0.02 / 15 if carPos[1] < ballPos[1] else -0.01 / 15
                 self.blueReward += reward  # Setup for reward sharing
             else:
                 # Reward for shooting ball on net, supersonic at goal = 1r, 
@@ -125,6 +128,9 @@ class BBReward(RewardFunction):
 
                 # Reward for making y-velocity of ball smaller
                 reward += -self.yVelocityReward * ballDeltaV[1] / SUPERSONIC_THRESHOLD
+
+                # Reward for being on the right side of the ball
+                self.reward += 0.02 / 15 if carPos[1] > ballPos[1] else -0.01 / 15
                 self.orangeReward += reward  # Setup for reward sharing
 
 
