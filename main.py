@@ -46,7 +46,7 @@ def main():
     model.set_logger(new_logger)
 
     # Train! (10 000 000 = 1e7 ~ 1 hr training)
-    model.learn(total_timesteps=int(24e7), callback=callback)
+    model.learn(total_timesteps=int(100e7), callback=callback)
 
 
 if __name__ == '__main__':

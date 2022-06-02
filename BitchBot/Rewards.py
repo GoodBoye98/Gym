@@ -10,9 +10,9 @@ class BBReward(RewardFunction):
     def __init__(self,
         ballTouchReward         = 0.7,      # 0.7
         ballAccelerateReward    = 0.8,      # 0.8
-        shotOnGoalReward        = 1.2,      # 1.2
+        shotOnGoalReward        = 1.0,      # 1.0
         goalReward              = 2.0,      # 2.0
-        ownGoalReward           = -0.5,     # -0.5
+        ownGoalReward           = -0.8,     # -0.8
         yVelocityReward         = 0.0,      # 0.0
         speedReward             = 0.0,      # 0.0
         towardBallReward        = 0.01,     # 0.01
@@ -114,12 +114,12 @@ class BBReward(RewardFunction):
                 # Reward for being between the ball and own net
                 toOwnGoal = BLUE_GOAL_CENTER - carPos; toOwnGoal /= n.linalg.norm(toOwnGoal)
                 angle = n.abs(n.arccos(n.dot(toOwnGoal, toBall)) - n.pi)
-                reward += self.defendingReward / 15 * n.exp(-2 * angle) * positionScalar
+                reward += self.defendingReward / 15 * n.exp(-3 * angle ** 2) * positionScalar
 
                 # Reward for being in position to shoot on net
                 toGoal = ORANGE_GOAL_CENTER - carPos; toGoal /= n.linalg.norm(toGoal)
                 angle = n.arccos(n.dot(toGoal, toBall))
-                reward += self.attackingReward / 15 * n.exp(-2 * angle) * (1 - positionScalar)
+                reward += self.attackingReward / 15 * n.exp(-3 * angle ** 2) * (1 - positionScalar)
 
                 # Bad being on wrong side of ball
                 if carPos[1] > ballPos[1]:
@@ -140,12 +140,12 @@ class BBReward(RewardFunction):
                 # Reward for being between the ball and own net
                 toOwnGoal = ORANGE_GOAL_CENTER - carPos; toOwnGoal /= n.linalg.norm(toOwnGoal)
                 angle = n.abs(n.arccos(n.dot(toOwnGoal, toBall)) - n.pi)
-                reward += self.defendingReward / 15 * n.exp(-2 * angle) * positionScalar
+                reward += self.defendingReward / 15 * n.exp(-3 * angle ** 2) * positionScalar
 
                 # Reward for being in position to shoot on net
                 toGoal = BLUE_GOAL_CENTER - carPos; toGoal /= n.linalg.norm(toGoal)
                 angle = n.arccos(n.dot(toGoal, toBall))
-                reward += self.attackingReward / 15 * n.exp(-2 * angle) * (1 - positionScalar)
+                reward += self.attackingReward / 15 * n.exp(-3 * angle ** 2) * (1 - positionScalar)
 
                 # Bad being on wrong side of ball
                 if carPos[1] < ballPos[1]:
@@ -178,7 +178,7 @@ class BBReward(RewardFunction):
             else:
                 reward -= self.goalReward
 
-        # Punishment for scoring in the wrong goal
+        # Punishment for being scored on
         if self.orangeScore < state.orange_score:
             self.orangeScore += 1
             if player.team_num == BLUE_TEAM:
@@ -211,19 +211,6 @@ class BBReward(RewardFunction):
         carVel = player.car_data.linear_velocity
         ballPos = state.ball.position
         ballVel = state.ball.linear_velocity
-
-        
-        # Reward for being in "good" position. "Perfect" gives 1r/s, worst gives 0.002r/s
-        toBall = ballPos - carPos; toBall /= n.linalg.norm(toBall)  # Normalized vetor from car to ball
-        if ballPos[1] > 0:  # ball on orange side
-            toGoal = self.orangeGoal - carPos; toGoal /= n.linalg.norm(toGoal)
-            cosAngle = n.dot(toGoal, toBall)  # cos of angle between vectors
-        else:  # Ball on blue side
-            toGoal = self.orangeGoal - carPos; toGoal /= n.linalg.norm(toGoal)
-            cosAngle = -n.dot(toGoal, toBall)  # cos of angle between vectors
-        reward += self.positionReward * 1 / 15 * n.exp(-2 * n.arccos(cosAngle))
-
-
 
         # Reward for facing the ball, (multiplied with carspeed)
         forward = player.car_data.forward()  # Vector in forward direction of car
