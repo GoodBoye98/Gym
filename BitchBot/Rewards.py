@@ -18,8 +18,8 @@ class BBReward(RewardFunction):
         towardBallReward        = 0.01,     # 0.01
         saveBoostReward         = 0.15,     # 0.15
         rewardShare             = 0.75,     # 0.75
-        defendingReward         = 0.05,     # 0.05
-        attackingReward         = 0.03      # 0.03
+        defendingReward         = 0.15,     # 0.15
+        attackingReward         = 0.10      # 0.10
     ):
         self.orangeScore = 0
         self.blueScore = 0
