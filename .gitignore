@@ -2,3 +2,4 @@ Checkpoints/*
 Logs/*
 SaveStates/*
 init.zip
+__pycache__
