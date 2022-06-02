@@ -18,8 +18,8 @@ class BBReward(RewardFunction):
         towardBallReward        = 0.01,     # 0.01
         saveBoostReward         = 0.15,     # 0.15
         rewardShare             = 0.75,     # 0.75
-        defendingReward         = 0.15,     # 0.15
-        attackingReward         = 0.10      # 0.10
+        defendingReward         = 0.10,     # 0.10
+        attackingReward         = 0.07      # 0.07
     ):
         self.orangeScore = 0
         self.blueScore = 0
@@ -121,6 +121,10 @@ class BBReward(RewardFunction):
                 angle = n.arccos(n.dot(toGoal, toBall))
                 reward += self.attackingReward / 15 * n.exp(-2 * angle) * (1 - positionScalar)
 
+                # Bad being on wrong side of ball
+                if carPos[1] > ballPos[1]:
+                    reward -= 2 * n.abs(carPos[1] - ballPos[1]) / 10240 / 15
+
                 self.blueReward += reward  # Setup for reward sharing
             else:
                 # Reward for shooting ball on net, supersonic at goal = 1r, 
@@ -142,6 +146,10 @@ class BBReward(RewardFunction):
                 toGoal = BLUE_GOAL_CENTER - carPos; toGoal /= n.linalg.norm(toGoal)
                 angle = n.arccos(n.dot(toGoal, toBall))
                 reward += self.attackingReward / 15 * n.exp(-2 * angle) * (1 - positionScalar)
+
+                # Bad being on wrong side of ball
+                if carPos[1] < ballPos[1]:
+                    reward -= 2 * n.abs(carPos[1] - ballPos[1]) / 10240 / 15
 
                 self.orangeReward += reward  # Setup for reward sharing
 
