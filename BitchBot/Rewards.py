@@ -10,16 +10,16 @@ class BBReward(RewardFunction):
     def __init__(self,
         ballTouchReward         = 0.7,      # 0.7
         ballAccelerateReward    = 0.8,      # 0.8
-        shotOnGoalReward        = 1.0,      # 1.0
-        goalReward              = 2.0,      # 2.0
-        ownGoalReward           = -0.8,     # -0.8
+        shotOnGoalReward        = 0.8,      # 0.8
+        goalReward              = 1.7,      # 1.7
+        ownGoalReward           = -0.9,     # -0.9
         yVelocityReward         = 0.0,      # 0.0
-        speedReward             = 0.0,      # 0.0
         towardBallReward        = 0.01,     # 0.01
         saveBoostReward         = 0.15,     # 0.15
         rewardShare             = 0.75,     # 0.75
-        defendingReward         = 0.10,     # 0.10
-        attackingReward         = 0.07      # 0.07
+        defendingReward         = 0.15,     # 0.15
+        attackingReward         = 0.10,     # 0.10
+        toDefenceReward         = 0.10      # 0.10
     ):
         self.orangeScore = 0
         self.blueScore = 0
@@ -32,13 +32,13 @@ class BBReward(RewardFunction):
         self.shotOnGoalReward = shotOnGoalReward                # r shot straight at net at supersonic
         self.goalReward = goalReward                            # r per goal
         self.ownGoalReward = ownGoalReward                      # r per own goal
-        self.speedReward = speedReward                          # r per sec at supersonic
         self.towardBallReward = towardBallReward                # r per sec at ball
         self.yVelocityReward = yVelocityReward                  # r per positive supersonic velocity change in
         self.saveBoostReward = saveBoostReward                  # r per sec with sqrt(boost)
         self.rewardShare = rewardShare                          # r shared between temmates
         self.defendingReward = defendingReward                  # r for being in defending position
         self.attackingReward = attackingReward                  # r for being in attacking position
+        self.toDefenceReward = toDefenceReward                  # r for driving toward defense if on wrong side of ball
         ###  REWARD RewardS
 
         self.orangeReward = 0
@@ -121,9 +121,9 @@ class BBReward(RewardFunction):
                 angle = n.arccos(n.dot(toGoal, toBall))
                 reward += self.attackingReward / 15 * n.exp(-3 * angle ** 2) * (1 - positionScalar)
 
-                # Bad being on wrong side of ball
+                # Reward driving toward right side of ball
                 if carPos[1] > ballPos[1]:
-                    reward -= 2 * n.abs(carPos[1] - ballPos[1]) / 10240 / 15
+                    reward += 0.3 * -carVel[1] / SUPERSONIC_THRESHOLD / 15
 
                 self.blueReward += reward  # Setup for reward sharing
             else:
@@ -147,9 +147,9 @@ class BBReward(RewardFunction):
                 angle = n.arccos(n.dot(toGoal, toBall))
                 reward += self.attackingReward / 15 * n.exp(-3 * angle ** 2) * (1 - positionScalar)
 
-                # Bad being on wrong side of ball
+                # Reward driving toward right side of ball
                 if carPos[1] < ballPos[1]:
-                    reward -= 2 * n.abs(carPos[1] - ballPos[1]) / 10240 / 15
+                    reward += 0.3 * carVel[1] / SUPERSONIC_THRESHOLD / 15
 
                 self.orangeReward += reward  # Setup for reward sharing
 
