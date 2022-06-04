@@ -9,17 +9,17 @@ class BBReward(RewardFunction):
 
     def __init__(self,
         ballTouchReward         = 0.7,      # 0.7
-        ballAccelerateReward    = 0.8,      # 0.8
+        ballAccelerateReward    = 1.2,      # 1.2
         shotOnGoalReward        = 0.8,      # 0.8
         goalReward              = 1.7,      # 1.7
-        ownGoalReward           = -0.9,     # -0.9
+        ownGoalReward           = -1.1,     # -1.1
         yVelocityReward         = 0.0,      # 0.0
         towardBallReward        = 0.01,     # 0.01
         saveBoostReward         = 0.15,     # 0.15
         rewardShare             = 0.75,     # 0.75
         defendingReward         = 0.15,     # 0.15
         attackingReward         = 0.10,     # 0.10
-        toDefenceReward         = 0.10      # 0.10
+        toDefenceReward         = 0.50      # 0.50
     ):
         self.orangeScore = 0
         self.blueScore = 0
@@ -123,7 +123,8 @@ class BBReward(RewardFunction):
 
                 # Reward driving toward right side of ball
                 if carPos[1] > ballPos[1]:
-                    reward += 0.3 * -carVel[1] / SUPERSONIC_THRESHOLD / 15
+                    reward += self.toDefenceReward * -carVel[1] / SUPERSONIC_THRESHOLD / 15
+                    reward -= 4 * n.abs(carPos[1] - ballPos[1]) / 10240 / 15  # Punish being far away from ball on wrong side
 
                 self.blueReward += reward  # Setup for reward sharing
             else:
@@ -149,7 +150,8 @@ class BBReward(RewardFunction):
 
                 # Reward driving toward right side of ball
                 if carPos[1] < ballPos[1]:
-                    reward += 0.3 * carVel[1] / SUPERSONIC_THRESHOLD / 15
+                    reward += self.toDefenceReward * carVel[1] / SUPERSONIC_THRESHOLD / 15
+                    reward -= 4 * n.abs(carPos[1] - ballPos[1]) / 10240 / 15  # Punish being far away from ball on wrong side
 
                 self.orangeReward += reward  # Setup for reward sharing
 
