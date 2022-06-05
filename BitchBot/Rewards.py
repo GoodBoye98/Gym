@@ -10,19 +10,19 @@ class BBReward(RewardFunction):
     def __init__(self):
 
         # Reward multipliers
-        self.ballTouchReward         = 0.4      # r per sec touching ball
-        self.ballAccelerateReward    = 1.5      # r per 0->supersonic
-        self.shotOnGoalReward        = 0.5      # r shot straight at net at supersonic
-        self.goalReward              = 2.0      # r per goal
-        self.saveReward              = 1.0      # r per save
-        self.demoReward              = 0.8      # r per demo
-        self.aquireBoostReward       = 0.5      # r per sec with sqrt(boost)
-        self.saveBoostReward         = 0.3      # r per sec with sqrt(boost)
+        self.ballTouchReward         = 0.3      # r per sec touching ball (ground level)
+        self.ballAccelerateReward    = 1.2      # r per 0->79.2km/h ball velocity
+        self.ballTowardGoal          = 0.4      # r per sec with ball toward goal
+        self.goalReward              = 4.0      # r per goal
+        self.saveReward              = 2.0      # r per save
+        self.demoReward              = 1.0      # r per demo
+        self.aquireBoostReward       = 0.5      # r per 0->100 boost
+        self.saveBoostReward         = 0.2      # r per sec with 100 boost
         self.rewardShare             = 0.6      # r shared between temmates
-        self.opponentNegation        = 0.4      # r negation for opponents rewards
-        self.defendingReward         = 0.4      # r for being in defending position
-        self.attackingReward         = 0.2      # r for being in attacking position
-        self.toDefenceReward         = 0.8      # r for driving toward defense if on wrong side of ball
+        self.opponentNegation        = 0.8      # r negation for avg. opponent rewards
+        self.defendingReward         = 0.2      # r for being in defending position
+        self.attackingReward         = 0.1      # r for being in attacking position
+        self.toDefenceReward         = 0.2      # r for driving toward defense if on wrong side of ball
 
         # Storing player data
         self.players = {}
@@ -90,59 +90,61 @@ class BBReward(RewardFunction):
 
             # Reward for accelerating the ball, 0 -> supersonic = 1r  ##
             ballDeltaV = ballVel - self.prevBallVel
-            reward += self.ballAccelerateReward *  n.linalg.norm(ballDeltaV) / SUPERSONIC_THRESHOLD
+            ballAceleration = n.linalg.norm(ballDeltaV)
+            reward += self.ballAccelerateReward * ballAceleration / SUPERSONIC_THRESHOLD
 
-            # Unit vector pointing toward ball
-            toBall = ballPos - carPos; toBall /= n.linalg.norm(toBall)
+        # Unit vector pointing toward ball
+        toBall = ballPos - carPos; toBall /= n.linalg.norm(toBall)
 
-            if player.team_num == BLUE_TEAM:
-                # Reward for shooting ball on net
-                ballToGoal = self.orangeGoal - ballPos; ballToGoal /= n.linalg.norm(ballToGoal)
-                ballVelScalar = n.linalg.norm(ballVel)
-                angle = n.arccos(n.dot(ballToGoal, ballVel / ballVelScalar))
-                reward += self.shotOnGoalReward * ballVelScalar / SUPERSONIC_THRESHOLD * n.exp(-2 * angle)
+        if player.team_num == BLUE_TEAM:
+            # Reward for having ball go on net
+            ballToGoal = self.orangeGoal - ballPos; ballToGoal /= n.linalg.norm(ballToGoal)
+            ballVelScalar = n.linalg.norm(ballVel)
+            angle = n.arccos(n.dot(ballToGoal, ballVel / ballVelScalar))
+            reward += self.ballTowardGoal * ballVelScalar / SUPERSONIC_THRESHOLD * n.exp(-3 * angle ** 2)
 
-                # 1 when ball is in own goal, 0 in opposition goal
-                positionScalar = (5120 - ballPos[1]) / 10240
+            # 1 when ball is in own goal, 0 in opposition goal
+            positionScalar = (5120 - ballPos[1]) / 10240
 
-                # Reward for being between the ball and own net
-                toOwnGoal = self.blueGoal - carPos; toOwnGoal /= n.linalg.norm(toOwnGoal)
-                angle = n.abs(n.arccos(n.dot(toOwnGoal, toBall)) - n.pi)
-                reward += self.defendingReward / 15 * n.exp(-3 * angle ** 2) * positionScalar
+            # Reward for being between the ball and own net
+            toOwnGoal = self.blueGoal - carPos; toOwnGoal /= n.linalg.norm(toOwnGoal)
+            angle = n.abs(n.arccos(n.dot(toOwnGoal, toBall)) - n.pi)
+            reward += self.defendingReward / 15 * n.exp(-3 * angle ** 2) * positionScalar
 
-                # Reward for being in position to shoot on net
-                toGoal = self.orangeGoal - carPos; toGoal /= n.linalg.norm(toGoal)
-                angle = n.arccos(n.dot(toGoal, toBall))
-                reward += self.attackingReward / 15 * n.exp(-3 * angle ** 2) * (1 - positionScalar)
+            # Reward for being in position to shoot on net
+            toGoal = self.orangeGoal - carPos; toGoal /= n.linalg.norm(toGoal)
+            angle = n.arccos(n.dot(toGoal, toBall))
+            reward += self.attackingReward / 15 * n.exp(-3 * angle ** 2) * (1 - positionScalar)
 
-                # Reward driving toward right side of ball
-                if carPos[1] > ballPos[1]:
-                    reward += self.toDefenceReward * -carVel[1] / SUPERSONIC_THRESHOLD / 15
-                    reward -= 4 * n.abs(carPos[1] - ballPos[1]) / 10240 / 15  # Punish being far away from ball on wrong side
-            else:
-                # Reward for shooting ball on net, supersonic at goal = 1r, 
-                ballToGoal = self.blueGoal - ballPos; ballToGoal /= n.linalg.norm(ballToGoal)
-                ballVelScalar = n.linalg.norm(ballVel)
-                angle = n.arccos(n.dot(ballToGoal, ballVel / ballVelScalar))
-                reward += self.shotOnGoalReward * ballVelScalar / SUPERSONIC_THRESHOLD * n.exp(-2 * angle)
+            # Reward driving toward right side of ball
+            if carPos[1] > ballPos[1]:
+                reward += self.toDefenceReward * -carVel[1] / SUPERSONIC_THRESHOLD / 15
+                reward -= 4 * n.abs(carPos[1] - ballPos[1]) / 10240 / 15  # Punish being far away from ball on wrong side
+        else:
+            # Reward for shooting ball on net, supersonic at goal = 1r, 
+            ballToGoal = self.blueGoal - ballPos; ballToGoal /= n.linalg.norm(ballToGoal)
+            ballVelScalar = n.linalg.norm(ballVel)
+            angle = n.arccos(n.dot(ballToGoal, ballVel / ballVelScalar))
+            reward += self.ballTowardGoal * ballAceleration / SUPERSONIC_THRESHOLD * n.exp(-3 * angle ** 2)
 
-                # 1 when ball is in own goal, 0 in opposition goal
-                positionScalar = (5120 + ballPos[1]) / 10240
+            # 1 when ball is in own goal, 0 in opposition goal
+            positionScalar = (5120 + ballPos[1]) / 10240
 
-                # Reward for being between the ball and own net
-                toOwnGoal = self.orangeGoal - carPos; toOwnGoal /= n.linalg.norm(toOwnGoal)
-                angle = n.abs(n.arccos(n.dot(toOwnGoal, toBall)) - n.pi)
-                reward += self.defendingReward / 15 * n.exp(-3 * angle ** 2) * positionScalar
+            # Reward for being between the ball and own net
+            toOwnGoal = self.orangeGoal - carPos; toOwnGoal /= n.linalg.norm(toOwnGoal)
+            angle = n.abs(n.arccos(n.dot(toOwnGoal, toBall)) - n.pi)
+            reward += self.defendingReward / 15 * n.exp(-3 * angle ** 2) * positionScalar
 
-                # Reward for being in position to shoot on net
-                toGoal = self.blueGoal - carPos; toGoal /= n.linalg.norm(toGoal)
-                angle = n.arccos(n.dot(toGoal, toBall))
-                reward += self.attackingReward / 15 * n.exp(-3 * angle ** 2) * (1 - positionScalar)
+            # Reward for being in position to shoot on net
+            toGoal = self.blueGoal - carPos; toGoal /= n.linalg.norm(toGoal)
+            angle = n.arccos(n.dot(toGoal, toBall))
+            reward += self.attackingReward / 15 * n.exp(-3 * angle ** 2) * (1 - positionScalar)
 
-                # Reward driving toward right side of ball
-                if carPos[1] < ballPos[1]:
-                    reward += self.toDefenceReward * carVel[1] / SUPERSONIC_THRESHOLD / 15
-                    reward -= 4 * n.abs(carPos[1] - ballPos[1]) / 10240 / 15  # Punish being far away from ball on wrong side
+            # Reward driving toward right side of ball
+            if carPos[1] < ballPos[1]:
+                reward += self.toDefenceReward * carVel[1] / SUPERSONIC_THRESHOLD / 15
+                reward -= 4 * n.abs(carPos[1] - ballPos[1]) / 10240 / 15  # Punish being far away from ball on wrong side
+
 
         # Update stored values
         self.players[player.car_id]['boost'] = player.boost_amount
@@ -165,7 +167,7 @@ class BBReward(RewardFunction):
             else:
                 otherTeamReward += self.players[p]['reward']
         # Shares rewards between teammates, and negative reward porportional to what opponents got
-        return (homeTeamReward - self.players[player.car_id]['reward']) * self.rewardShare - otherTeamReward * self.opponentNegation
+        return (homeTeamReward - self.players[player.car_id]['reward']) * self.rewardShare - otherTeamReward * 2 * self.opponentNegation / len(self.players)
     
 
     def _misc_rewards(self, player: PlayerData, state: GameState, previous_action: n.ndarray) -> float:
