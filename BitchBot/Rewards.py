@@ -7,66 +7,54 @@ from rlgym.utils.gamestates import GameState, PlayerData
 
 class BBReward(RewardFunction):
 
-    def __init__(self,
-        ballTouchReward         = 0.7,      # 0.7
-        ballAccelerateReward    = 1.2,      # 1.2
-        shotOnGoalReward        = 0.8,      # 0.8
-        goalReward              = 1.7,      # 1.7
-        ownGoalReward           = -1.1,     # -1.1
-        yVelocityReward         = 0.0,      # 0.0
-        towardBallReward        = 0.01,     # 0.01
-        saveBoostReward         = 0.15,     # 0.15
-        rewardShare             = 0.75,     # 0.75
-        defendingReward         = 0.15,     # 0.15
-        attackingReward         = 0.10,     # 0.10
-        toDefenceReward         = 0.50      # 0.50
-    ):
-        self.orangeScore = 0
-        self.blueScore = 0
-        self.orangeGoal = n.array(ORANGE_GOAL_CENTER, dtype=n.float32)
-        self.blueGoal   = n.array(BLUE_GOAL_CENTER, dtype=n.float32)
+    def __init__(self):
 
-        ###  REWARD RewardS
-        self.ballTouchReward = ballTouchReward                  # r per sec touching ball
-        self.ballAccelerateReward = ballAccelerateReward        # r per 0->supersonic
-        self.shotOnGoalReward = shotOnGoalReward                # r shot straight at net at supersonic
-        self.goalReward = goalReward                            # r per goal
-        self.ownGoalReward = ownGoalReward                      # r per own goal
-        self.towardBallReward = towardBallReward                # r per sec at ball
-        self.yVelocityReward = yVelocityReward                  # r per positive supersonic velocity change in
-        self.saveBoostReward = saveBoostReward                  # r per sec with sqrt(boost)
-        self.rewardShare = rewardShare                          # r shared between temmates
-        self.defendingReward = defendingReward                  # r for being in defending position
-        self.attackingReward = attackingReward                  # r for being in attacking position
-        self.toDefenceReward = toDefenceReward                  # r for driving toward defense if on wrong side of ball
-        ###  REWARD RewardS
+        # Reward multipliers
+        self.ballTouchReward         = 0.4      # r per sec touching ball
+        self.ballAccelerateReward    = 1.5      # r per 0->supersonic
+        self.shotOnGoalReward        = 0.5      # r shot straight at net at supersonic
+        self.goalReward              = 2.0      # r per goal
+        self.saveReward              = 1.0      # r per save
+        self.demoReward              = 0.8      # r per demo
+        self.aquireBoostReward       = 0.5      # r per sec with sqrt(boost)
+        self.saveBoostReward         = 0.3      # r per sec with sqrt(boost)
+        self.rewardShare             = 0.6      # r shared between temmates
+        self.opponentNegation        = 0.4      # r negation for opponents rewards
+        self.defendingReward         = 0.4      # r for being in defending position
+        self.attackingReward         = 0.2      # r for being in attacking position
+        self.toDefenceReward         = 0.8      # r for driving toward defense if on wrong side of ball
 
-        self.orangeReward = 0
-        self.blueReward = 0
+        # Storing player data
+        self.players = {}
+
+        # Storing key values
+        self.orangeGoal = ORANGE_GOAL_CENTER
+        self.blueGoal = BLUE_GOAL_CENTER
 
     def reset(self, initial_state: GameState):
-        self.prevCarPos = n.array([0, 0, 0], dtype=n.float32)
-        self.prevCarVel = n.array([0, 0, 0], dtype=n.float32)
-        self.prevBallPos = n.array([0, 0, 0], dtype=n.float32)
-        self.prevBallVel = n.array([0, 0, 0], dtype=n.float32)
-        self.prevDist = 0
-        self.touchedBall = False
         self.firstIter = True
 
-        self.orangeReward = 0
-        self.blueReward = 0
+        # Reset rewards in playerdata
+        for player in self.players.keys():
+            self.players[player]['reward'] = 0
 
 
     def get_reward(self, player: PlayerData, state: GameState, previous_action: n.ndarray) -> float:
-        # Skip first iteration after reset
+
+        # Initialize player dictionary
+        if player not in self.players.keys():
+            self.players[player.car_id] = {
+                'boost': player.boost_amount,
+                'goals': player.match_goals,
+                'demos': player.match_demolishes,
+                'saves': player.match_saves,
+                'team': player.team_num,
+                'reward': 0
+            }
+
+        # Skip first iteration after each reset-call
         if self.firstIter:
             self.prevBallVel = state.ball.linear_velocity
-            self.firstIter = False
-            return 0
-
-
-        ### Order of actions in previous_action
-        ### [drive, steer, yaw, pitch, roll, jump, boost, powerslide] ###
         
         # Initialize reward
         reward = 0
@@ -79,45 +67,51 @@ class BBReward(RewardFunction):
 
         ### START OF REWARDS ###
 
-        # Reward for moving toward the ball
-        toBall = ballPos - carPos; toBall /= n.linalg.norm(toBall)
-        carVelScalar = n.linalg.norm(carVel) + 1e-6
-        angle = n.arccos(n.dot(toBall, carVel / carVelScalar))
-        reward += 0.0667 * self.towardBallReward * n.exp(-2 * angle)
+        # Reward for gathering boost
+        reward += self.aquireBoostReward * (player.boost_amount - self.players[player.car_id]['boost']) / 100
 
-        # # Reward for going fast
-        # reward += 0.0667 * self.speedReward * carVelScalar / SUPERSONIC_THRESHOLD
+        # Reward for demoing
+        reward += self.demoReward * (player.match_demolishes - self.players[player.car_id]['demos'])
 
         # Reward for saving boost
         reward += 0.0667 * self.saveBoostReward * n.sqrt(player.boost_amount / 100)
 
+        # Reward for saving a shot
+        reward += self.saveReward * (player.match_saves - self.players[player.car_id]['saves'])
+
+        # Reward for scoring a goal
+        reward += self.goalReward * (player.match_goals - self.players[player.car_id]['goals'])
+
+        # Misc. reward for touching ball
         if player.ball_touched:
             # Reward for touching the ball, higher is better. Double reward if in air
             heightMul = ballPos[2] / (CEILING_Z - 92.75)  # between 0.05 and 1
-            reward += 1.4 * self.ballTouchReward * heightMul * (2 - int(player.on_ground))
+            reward += self.ballTouchReward * heightMul * 2 * (1.5 - int(player.on_ground))
 
             # Reward for accelerating the ball, 0 -> supersonic = 1r  ##
             ballDeltaV = ballVel - self.prevBallVel
             reward += self.ballAccelerateReward *  n.linalg.norm(ballDeltaV) / SUPERSONIC_THRESHOLD
 
+            # Unit vector pointing toward ball
+            toBall = ballPos - carPos; toBall /= n.linalg.norm(toBall)
+
             if player.team_num == BLUE_TEAM:
-                # Reward for shooting ball on net, supersonic at goal = 1r, 
+                # Reward for shooting ball on net
                 ballToGoal = self.orangeGoal - ballPos; ballToGoal /= n.linalg.norm(ballToGoal)
                 ballVelScalar = n.linalg.norm(ballVel)
                 angle = n.arccos(n.dot(ballToGoal, ballVel / ballVelScalar))
                 reward += self.shotOnGoalReward * ballVelScalar / SUPERSONIC_THRESHOLD * n.exp(-2 * angle)
 
-
                 # 1 when ball is in own goal, 0 in opposition goal
                 positionScalar = (5120 - ballPos[1]) / 10240
 
                 # Reward for being between the ball and own net
-                toOwnGoal = BLUE_GOAL_CENTER - carPos; toOwnGoal /= n.linalg.norm(toOwnGoal)
+                toOwnGoal = self.blueGoal - carPos; toOwnGoal /= n.linalg.norm(toOwnGoal)
                 angle = n.abs(n.arccos(n.dot(toOwnGoal, toBall)) - n.pi)
                 reward += self.defendingReward / 15 * n.exp(-3 * angle ** 2) * positionScalar
 
                 # Reward for being in position to shoot on net
-                toGoal = ORANGE_GOAL_CENTER - carPos; toGoal /= n.linalg.norm(toGoal)
+                toGoal = self.orangeGoal - carPos; toGoal /= n.linalg.norm(toGoal)
                 angle = n.arccos(n.dot(toGoal, toBall))
                 reward += self.attackingReward / 15 * n.exp(-3 * angle ** 2) * (1 - positionScalar)
 
@@ -125,8 +119,6 @@ class BBReward(RewardFunction):
                 if carPos[1] > ballPos[1]:
                     reward += self.toDefenceReward * -carVel[1] / SUPERSONIC_THRESHOLD / 15
                     reward -= 4 * n.abs(carPos[1] - ballPos[1]) / 10240 / 15  # Punish being far away from ball on wrong side
-
-                self.blueReward += reward  # Setup for reward sharing
             else:
                 # Reward for shooting ball on net, supersonic at goal = 1r, 
                 ballToGoal = self.blueGoal - ballPos; ballToGoal /= n.linalg.norm(ballToGoal)
@@ -134,17 +126,16 @@ class BBReward(RewardFunction):
                 angle = n.arccos(n.dot(ballToGoal, ballVel / ballVelScalar))
                 reward += self.shotOnGoalReward * ballVelScalar / SUPERSONIC_THRESHOLD * n.exp(-2 * angle)
 
-
                 # 1 when ball is in own goal, 0 in opposition goal
                 positionScalar = (5120 + ballPos[1]) / 10240
 
                 # Reward for being between the ball and own net
-                toOwnGoal = ORANGE_GOAL_CENTER - carPos; toOwnGoal /= n.linalg.norm(toOwnGoal)
+                toOwnGoal = self.orangeGoal - carPos; toOwnGoal /= n.linalg.norm(toOwnGoal)
                 angle = n.abs(n.arccos(n.dot(toOwnGoal, toBall)) - n.pi)
                 reward += self.defendingReward / 15 * n.exp(-3 * angle ** 2) * positionScalar
 
                 # Reward for being in position to shoot on net
-                toGoal = BLUE_GOAL_CENTER - carPos; toGoal /= n.linalg.norm(toGoal)
+                toGoal = self.blueGoal - carPos; toGoal /= n.linalg.norm(toGoal)
                 angle = n.arccos(n.dot(toGoal, toBall))
                 reward += self.attackingReward / 15 * n.exp(-3 * angle ** 2) * (1 - positionScalar)
 
@@ -153,42 +144,28 @@ class BBReward(RewardFunction):
                     reward += self.toDefenceReward * carVel[1] / SUPERSONIC_THRESHOLD / 15
                     reward -= 4 * n.abs(carPos[1] - ballPos[1]) / 10240 / 15  # Punish being far away from ball on wrong side
 
-                self.orangeReward += reward  # Setup for reward sharing
-
-
-            # Makes sure no false goal rewards are given
-            self.touchedBall = True
-
         # Update stored values
+        self.players[player.car_id]['boost'] = player.boost_amount
+        self.players[player.car_id]['goals'] = player.match_goals
+        self.players[player.car_id]['demos'] = player.match_demolishes
+        self.players[player.car_id]['saves'] = player.match_saves
+        self.players[player.car_id]['reward'] += reward
         self.prevBallVel = ballVel
 
         return reward
 
     def get_final_reward(self, player: PlayerData, state: GameState, previous_action: n.ndarray) -> float:
-        if not self.touchedBall:
-            return 0
 
-        # Initialize with shared reward values
-        reward = self.blueReward if player.team_num == BLUE_TEAM else self.orangeReward
-        reward *= self.rewardShare
-
-        # Reward for scoring in the right goal
-        if self.blueScore < state.blue_score:
-            self.blueScore += 1
-            if player.team_num == BLUE_TEAM:
-                reward += self.goalReward
+        # Reward sharing
+        homeTeamReward = 0.0
+        otherTeamReward = 0.0
+        for p in self.players.keys():
+            if self.players[p]['team'] == player.team_num:
+                homeTeamReward += self.players[p]['reward']
             else:
-                reward -= self.goalReward
-
-        # Punishment for being scored on
-        if self.orangeScore < state.orange_score:
-            self.orangeScore += 1
-            if player.team_num == BLUE_TEAM:
-                reward -= self.goalReward
-            else:
-                reward += self.goalReward
-
-        return reward
+                otherTeamReward += self.players[p]['reward']
+        # Shares rewards between teammates, and negative reward porportional to what opponents got
+        return (homeTeamReward - self.players[player.car_id]['reward']) * self.rewardShare - otherTeamReward * self.opponentNegation
     
 
     def _misc_rewards(self, player: PlayerData, state: GameState, previous_action: n.ndarray) -> float:
