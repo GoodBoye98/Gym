@@ -1,6 +1,4 @@
 import numpy as n
-from turtle import position, speed
-from rlgym.utils import math
 from rlgym.utils.common_values import ORANGE_GOAL_CENTER, BLUE_GOAL_CENTER, SUPERSONIC_THRESHOLD, CEILING_Z, ORANGE_TEAM, BLUE_TEAM
 from rlgym.utils.reward_functions import RewardFunction
 from rlgym.utils.gamestates import GameState, PlayerData
@@ -10,18 +8,18 @@ class BBReward(RewardFunction):
     def __init__(self):
 
         # Reward multipliers
-        self.ballTouchReward         = 0.3      # r per sec touching ball (ground level)
+        self.ballTouchReward         = 1.0      # r per sec touching ball (ground level)
         self.ballAccelerateReward    = 1.2      # r per 0->79.2km/h ball velocity
-        self.ballTowardGoal          = 0.4      # r per sec with ball toward goal
-        self.goalReward              = 4.0      # r per goal
+        self.ballTowardGoal          = 0.5      # r per sec with ball toward goal
+        self.goalReward              = 3.0      # r per goal
         self.saveReward              = 2.0      # r per save
-        self.demoReward              = 1.0      # r per demo
+        self.demoReward              = 0.8      # r per demo
         self.aquireBoostReward       = 0.5      # r per 0->100 boost
-        self.saveBoostReward         = 0.2      # r per sec with 100 boost
+        self.saveBoostReward         = 0.13     # r per sec with 100 boost
         self.rewardShare             = 0.6      # r shared between temmates
         self.opponentNegation        = 0.8      # r negation for avg. opponent rewards
-        self.defendingReward         = 0.2      # r for being in defending position
-        self.attackingReward         = 0.1      # r for being in attacking position
+        self.defendingReward         = 0.14     # r for being in defending position
+        self.attackingReward         = 0.10     # r for being in attacking position
         self.toDefenceReward         = 0.2      # r for driving toward defense if on wrong side of ball
 
         # Storing player data
@@ -95,11 +93,11 @@ class BBReward(RewardFunction):
 
         # Unit vector pointing toward ball
         toBall = ballPos - carPos; toBall /= n.linalg.norm(toBall)
+        ballVelScalar = n.linalg.norm(ballVel) + 1e-6
 
         if player.team_num == BLUE_TEAM:
             # Reward for having ball go on net
             ballToGoal = self.orangeGoal - ballPos; ballToGoal /= n.linalg.norm(ballToGoal)
-            ballVelScalar = n.linalg.norm(ballVel)
             angle = n.arccos(n.dot(ballToGoal, ballVel / ballVelScalar))
             reward += self.ballTowardGoal * ballVelScalar / SUPERSONIC_THRESHOLD * n.exp(-3 * angle ** 2)
 
@@ -119,13 +117,12 @@ class BBReward(RewardFunction):
             # Reward driving toward right side of ball
             if carPos[1] > ballPos[1]:
                 reward += self.toDefenceReward * -carVel[1] / SUPERSONIC_THRESHOLD / 15
-                reward -= 4 * n.abs(carPos[1] - ballPos[1]) / 10240 / 15  # Punish being far away from ball on wrong side
+                reward -= 0.5 * n.abs(carPos[1] - ballPos[1]) / 10240 / 15  # Punish being far away from ball on wrong side
         else:
             # Reward for shooting ball on net, supersonic at goal = 1r, 
             ballToGoal = self.blueGoal - ballPos; ballToGoal /= n.linalg.norm(ballToGoal)
-            ballVelScalar = n.linalg.norm(ballVel)
             angle = n.arccos(n.dot(ballToGoal, ballVel / ballVelScalar))
-            reward += self.ballTowardGoal * ballAceleration / SUPERSONIC_THRESHOLD * n.exp(-3 * angle ** 2)
+            reward += self.ballTowardGoal * ballVelScalar / SUPERSONIC_THRESHOLD * n.exp(-3 * angle ** 2)
 
             # 1 when ball is in own goal, 0 in opposition goal
             positionScalar = (5120 + ballPos[1]) / 10240
@@ -143,7 +140,7 @@ class BBReward(RewardFunction):
             # Reward driving toward right side of ball
             if carPos[1] < ballPos[1]:
                 reward += self.toDefenceReward * carVel[1] / SUPERSONIC_THRESHOLD / 15
-                reward -= 4 * n.abs(carPos[1] - ballPos[1]) / 10240 / 15  # Punish being far away from ball on wrong side
+                reward -= 0.5 * n.abs(carPos[1] - ballPos[1]) / 10240 / 15  # Punish being far away from ball on wrong side
 
 
         # Update stored values

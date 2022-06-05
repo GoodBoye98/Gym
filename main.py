@@ -1,6 +1,3 @@
-from re import U
-import rlgym
-import numpy as n
 from stable_baselines3 import PPO
 from stable_baselines3.common.logger import configure
 from stable_baselines3.common.callbacks import CheckpointCallback, EvalCallback, CallbackList
@@ -10,7 +7,7 @@ from BitchBot import BBReward, BBObservations, BBActionParser, BBStateSetter, BB
 from rlgym.envs import Match
 from rlgym_tools.sb3_utils import SB3MultipleInstanceEnv
 
-N_STEPS = 512
+N_STEPS = 1024
 BATCH_SIZE = 256
 
 
