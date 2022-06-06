@@ -1,3 +1,4 @@
+from plistlib import InvalidFileException
 import numpy as n
 from rlgym.utils.common_values import ORANGE_GOAL_CENTER, BLUE_GOAL_CENTER, SUPERSONIC_THRESHOLD, CEILING_Z, ORANGE_TEAM, BLUE_TEAM
 from rlgym.utils.reward_functions import RewardFunction
@@ -7,20 +8,20 @@ class BBReward(RewardFunction):
 
     def __init__(self):
 
-        # Reward multipliers
-        self.ballTouchReward         = 1.0      # r per sec touching ball (ground level)
-        self.ballAccelerateReward    = 1.2      # r per 0->79.2km/h ball velocity
-        self.ballTowardGoal          = 0.5      # r per sec with ball toward goal
-        self.goalReward              = 3.0      # r per goal
-        self.saveReward              = 2.0      # r per save
-        self.demoReward              = 0.8      # r per demo
-        self.aquireBoostReward       = 0.5      # r per 0->100 boost
-        self.saveBoostReward         = 0.13     # r per sec with 100 boost
-        self.rewardShare             = 0.6      # r shared between temmates
-        self.opponentNegation        = 0.8      # r negation for avg. opponent rewards
-        self.defendingReward         = 0.14     # r for being in defending position
-        self.attackingReward         = 0.10     # r for being in attacking position
-        self.toDefenceReward         = 0.2      # r for driving toward defense if on wrong side of ball
+        # Reward multipliers (values in rewards.cfg)
+        self.ballTouchReward         = None      # r per sec touching ball (ground level)
+        self.ballAccelerateReward    = None      # r per 0->79.2km/h ball velocity
+        self.ballTowardGoal          = None      # r per sec with ball toward goal
+        self.goalReward              = None      # r per goal
+        self.saveReward              = None      # r per save
+        self.demoReward              = None      # r per demo
+        self.aquireBoostReward       = None      # r per 0->100 boost
+        self.saveBoostReward         = None      # r per sec with 100 boost
+        self.rewardShare             = None      # r shared between temmates
+        self.opponentNegation        = None      # r negation for avg. opponent rewards
+        self.defendingReward         = None      # r for being in defending position
+        self.attackingReward         = None      # r for being in attacking position
+        self.toDefenceReward         = None      # r for driving toward defense if on wrong side of ball
 
         # Storing player data
         self.players = {}
@@ -29,7 +30,59 @@ class BBReward(RewardFunction):
         self.orangeGoal = ORANGE_GOAL_CENTER
         self.blueGoal = BLUE_GOAL_CENTER
 
+        # Updating rewards
+        if not self._updateRewards():
+            raise InvalidFileException("invalid values in 'BitchBot/reward.cfg'")
+
+    def _updateRewards(self) -> bool:
+        try:
+            with open("BitchBot/rewards.cfg", 'r') as file:
+                string = ''
+                lines = file.readlines()
+                lines = [line.rstrip() for line in lines]
+                for line in lines:
+                    if len(line) < 1:
+                        continue
+                    l = line.replace(' ', '').split('=')
+                    cmd = l[0]
+                    val = float(l[1].split('#')[0])
+                    if cmd == 'ballTouchReward':
+                        self.ballTouchReward = val
+                    elif cmd == 'ballAccelerateReward':
+                        self.ballAccelerateReward = val
+                    elif cmd == 'ballTowardGoal':
+                        self.ballTowardGoal = val
+                    elif cmd == 'goalReward':
+                        self.goalReward = val
+                    elif cmd == 'saveReward':
+                        self.saveReward = val
+                    elif cmd == 'demoReward':
+                        self.demoReward = val
+                    elif cmd == 'aquireBoostReward':
+                        self.aquireBoostReward = val
+                    elif cmd == 'saveBoostReward':
+                        self.saveBoostReward = val
+                    elif cmd == 'rewardShare':
+                        self.rewardShare = val
+                    elif cmd == 'opponentNegation':
+                        self.opponentNegation = val
+                    elif cmd == 'defendingReward':
+                        self.defendingReward = val
+                    elif cmd == 'attackingReward':
+                        self.attackingReward = val
+                    elif cmd == 'toDefenceReward':
+                        self.toDefenceReward = val
+            print('ballTouchReward =', self.ballTouchReward)
+            return True
+        except:
+            print('Could not update rewards, trying again next reset()')
+            return False
+
     def reset(self, initial_state: GameState):
+
+        # Update reward values
+        self._updateRewards()
+
         self.firstIter = True
 
         # Reset rewards in playerdata
