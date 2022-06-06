@@ -72,7 +72,6 @@ class BBReward(RewardFunction):
                         self.attackingReward = val
                     elif cmd == 'toDefenceReward':
                         self.toDefenceReward = val
-            print('ballTouchReward =', self.ballTouchReward)
             return True
         except:
             print('Could not update rewards, trying again next reset()')
@@ -88,7 +87,6 @@ class BBReward(RewardFunction):
         # Reset rewards in playerdata
         for player in self.players.keys():
             self.players[player]['reward'] = 0
-
 
     def get_reward(self, player: PlayerData, state: GameState, previous_action: n.ndarray) -> float:
 
@@ -217,7 +215,7 @@ class BBReward(RewardFunction):
             else:
                 otherTeamReward += self.players[p]['reward']
         # Shares rewards between teammates, and negative reward porportional to what opponents got
-        return (homeTeamReward - self.players[player.car_id]['reward']) * self.rewardShare - otherTeamReward * 2 * self.opponentNegation / len(self.players)
+        return self.get_reward(player, state, previous_action) + (homeTeamReward - self.players[player.car_id]['reward']) * self.rewardShare - otherTeamReward * 2 * self.opponentNegation / len(self.players)
     
 
     def _misc_rewards(self, player: PlayerData, state: GameState, previous_action: n.ndarray) -> float:
