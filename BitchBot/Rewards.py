@@ -117,7 +117,9 @@ class BBReward(RewardFunction):
         ### START OF REWARDS ###
 
         # Reward for gathering boost
-        reward += self.aquireBoostReward * (player.boost_amount - self.players[player.car_id]['boost']) / 100
+        deltaBoost = player.boost_amount - self.players[player.car_id]['boost']
+        if deltaBoost > 0:
+            reward += self.aquireBoostReward * deltaBoost / 100
 
         # Reward for demoing
         reward += self.demoReward * (player.match_demolishes - self.players[player.car_id]['demos'])
