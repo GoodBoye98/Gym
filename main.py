@@ -36,7 +36,7 @@ def main():
     model.set_parameters("init")  # Load parameters from init
     
     # Create callbacks
-    callback = CheckpointCallback(save_freq=1e7 // env.num_envs, save_path="Checkpoints", name_prefix="bb_iteration")
+    callback = CheckpointCallback(save_freq=2e6 // env.num_envs, save_path="Checkpoints", name_prefix="bb_iteration")
 
     # Set logger
     new_logger = configure("Logs", ["stdout", "csv", "tensorboard"])
