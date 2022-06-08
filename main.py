@@ -8,7 +8,7 @@ from rlgym.envs import Match
 from rlgym_tools.sb3_utils import SB3MultipleInstanceEnv
 
 N_STEPS = 1024
-BATCH_SIZE = 256
+BATCH_SIZE = 512
 
 
 # Construct matches
