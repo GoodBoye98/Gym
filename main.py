@@ -29,7 +29,7 @@ def get_match():
 
 def main():
     # Make the vectorized rlgym environment
-    env = SB3MultipleInstanceEnv(match_func_or_matches=get_match, num_instances=8, wait_time=20)
+    env = SB3MultipleInstanceEnv(match_func_or_matches=get_match, num_instances=8, wait_time=30)
 
     # Initialize PPO from SB3
     model = PPO("MlpPolicy", env=env, verbose=1, n_steps=N_STEPS, batch_size=BATCH_SIZE, learning_rate=1e-4, ent_coef=0.005)

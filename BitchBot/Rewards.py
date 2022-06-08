@@ -152,7 +152,7 @@ class BBReward(RewardFunction):
             # Reward for having ball go on net
             ballToGoal = self.orangeGoal - ballPos; ballToGoal /= n.linalg.norm(ballToGoal)
             angle = n.arccos(n.dot(ballToGoal, ballVel / ballVelScalar))
-            reward += self.ballTowardGoal * ballVelScalar / SUPERSONIC_THRESHOLD * n.exp(-3 * angle ** 2)
+            reward += self.ballTowardGoal * ballVelScalar / SUPERSONIC_THRESHOLD * n.exp(-2 * angle)
 
             # 1 when ball is in own goal, 0 in opposition goal
             positionScalar = (5120 - ballPos[1]) / 10240
@@ -175,7 +175,7 @@ class BBReward(RewardFunction):
             # Reward for shooting ball on net, supersonic at goal = 1r, 
             ballToGoal = self.blueGoal - ballPos; ballToGoal /= n.linalg.norm(ballToGoal)
             angle = n.arccos(n.dot(ballToGoal, ballVel / ballVelScalar))
-            reward += self.ballTowardGoal * ballVelScalar / SUPERSONIC_THRESHOLD * n.exp(-3 * angle ** 2)
+            reward += self.ballTowardGoal * ballVelScalar / SUPERSONIC_THRESHOLD * n.exp(-2 * angle)
 
             # 1 when ball is in own goal, 0 in opposition goal
             positionScalar = (5120 + ballPos[1]) / 10240
