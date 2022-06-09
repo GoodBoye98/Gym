@@ -1,13 +1,13 @@
 from stable_baselines3 import PPO
 from stable_baselines3.common.logger import configure
-from stable_baselines3.common.callbacks import CheckpointCallback, EvalCallback, CallbackList
+from stable_baselines3.common.callbacks import CheckpointCallback
 from BitchBot import BBReward, BBObservations, BBActionParser, BBStateSetter, BBTerminalCondition
 
 # Imports for multiple instances
 from rlgym.envs import Match
 from rlgym_tools.sb3_utils import SB3MultipleInstanceEnv
 
-N_STEPS = 1024
+N_STEPS = 4096
 BATCH_SIZE = 512
 
 
@@ -32,10 +32,10 @@ def main():
     env = SB3MultipleInstanceEnv(match_func_or_matches=get_match, num_instances=8, wait_time=30)
 
     # Initialize PPO from SB3
-    model = PPO("MlpPolicy", env=env, verbose=1, n_steps=N_STEPS, batch_size=BATCH_SIZE, learning_rate=1e-4, ent_coef=0.005)
+    model = PPO("MlpPolicy", env=env, verbose=1, n_steps=N_STEPS, batch_size=BATCH_SIZE, learning_rate=1e-4, ent_coef=0.002)
     model.set_parameters("init")  # Load parameters from init
     
-    # Create callbacks
+    # Create callback
     callback = CheckpointCallback(save_freq=2e6 // env.num_envs, save_path="Checkpoints", name_prefix="bb_iteration")
 
     # Set logger
