@@ -10,6 +10,7 @@ class BBReward(RewardFunction):
 
         # Reward multipliers (values in rewards.cfg)
         self.ballTouchReward         = None      # r per sec touching ball (ground level)
+        self.inAirMultiplier         = None      # multiplier for touching ball in the air
         self.ballAccelerateReward    = None      # r per 0->79.2km/h ball velocity
         self.ballTowardGoal          = None      # r per sec with ball toward goal
         self.goalReward              = None      # r per goal
@@ -22,6 +23,8 @@ class BBReward(RewardFunction):
         self.defendingReward         = None      # r for being in defending position
         self.attackingReward         = None      # r for being in attacking position
         self.toDefenceReward         = None      # r for driving toward defense if on wrong side of ball
+        self.flyTowardAerialBall     = None      # r for flying toward ball in the air
+        self.closeToAerialBall       = None      # r for being close to ball in the air
 
         # Storing player data
         self.players = {}
@@ -48,6 +51,8 @@ class BBReward(RewardFunction):
                     val = float(l[1].split('#')[0])
                     if cmd == 'ballTouchReward':
                         self.ballTouchReward = val
+                    if cmd == 'inAirMultiplier':
+                        self.inAirMultiplier = val
                     elif cmd == 'ballAccelerateReward':
                         self.ballAccelerateReward = val
                     elif cmd == 'ballTowardGoal':
@@ -72,6 +77,10 @@ class BBReward(RewardFunction):
                         self.attackingReward = val
                     elif cmd == 'toDefenceReward':
                         self.toDefenceReward = val
+                    elif cmd == 'flyTowardAerialBall':
+                        self.flyTowardAerialBall = val
+                    elif cmd == 'closeToAerialBall':
+                        self.closeToAerialBall = val
             return True
         except:
             print('Could not update rewards, trying again next reset()')
@@ -137,22 +146,39 @@ class BBReward(RewardFunction):
         if player.ball_touched:
             # Reward for touching the ball, higher is better. Double reward if in air
             heightMul = ballPos[2] / (CEILING_Z - 92.75)  # between 0.05 and 1
-            reward += self.ballTouchReward * heightMul * 2 * (1.5 - int(player.on_ground))
+            reward += self.ballTouchReward * heightMul * ((self.inAirMultiplier - 1) * (1 - int(player.on_ground)) + 1)
 
             # Reward for accelerating the ball, 0 -> supersonic = 1r  ##
             ballDeltaV = ballVel - self.prevBallVel
             ballAceleration = n.linalg.norm(ballDeltaV)
             reward += self.ballAccelerateReward * ballAceleration / SUPERSONIC_THRESHOLD
 
+
         # Unit vector pointing toward ball
-        toBall = ballPos - carPos; toBall /= n.linalg.norm(toBall)
+        toBall = ballPos - carPos
+        toBallScalar = n.linalg.norm(toBall)
+        toBall /= toBallScalar
         ballVelScalar = n.linalg.norm(ballVel) + 1e-6
+
+
+        # Rewards to incentivise air dribbling
+        if not player.on_ground:
+            # Reward for flying toward ball in the air
+            carVelScalar = n.linalg.norm(carVel)
+            carVelNorm = carVel / carVelScalar
+            angle = n.arccos(n.dot(carVelNorm, toBall))
+            velocityMultiplier = n.min(2 * carVelScalar / SUPERSONIC_THRESHOLD, 1)
+            reward += velocityMultiplier * self.flyTowardAerialBall / 15 * n.exp(- 3 * angle ** 2)
+
+            # Reward for being close to the ball in the air
+            reward += self.closeToAerialBall * (n.exp(- (toBallScalar - 150) / 1000) - 0.1)
+
 
         if player.team_num == BLUE_TEAM:
             # Reward for having ball go on net
             ballToGoal = self.orangeGoal - ballPos; ballToGoal /= n.linalg.norm(ballToGoal)
             angle = n.arccos(n.dot(ballToGoal, ballVel / ballVelScalar))
-            reward += self.ballTowardGoal * ballVelScalar / SUPERSONIC_THRESHOLD * n.exp(-2 * angle)
+            reward += self.ballTowardGoal / 15 * ballVelScalar / SUPERSONIC_THRESHOLD * n.exp(-2 * angle)
 
             # 1 when ball is in own goal, 0 in opposition goal
             positionScalar = (5120 - ballPos[1]) / 10240
@@ -170,12 +196,11 @@ class BBReward(RewardFunction):
             # Reward driving toward right side of ball
             if carPos[1] > ballPos[1]:
                 reward += self.toDefenceReward * -carVel[1] / SUPERSONIC_THRESHOLD / 15
-                reward -= 0.5 * n.abs(carPos[1] - ballPos[1]) / 10240 / 15  # Punish being far away from ball on wrong side
         else:
             # Reward for shooting ball on net, supersonic at goal = 1r, 
             ballToGoal = self.blueGoal - ballPos; ballToGoal /= n.linalg.norm(ballToGoal)
             angle = n.arccos(n.dot(ballToGoal, ballVel / ballVelScalar))
-            reward += self.ballTowardGoal * ballVelScalar / SUPERSONIC_THRESHOLD * n.exp(-2 * angle)
+            reward += self.ballTowardGoal / 15 * ballVelScalar / SUPERSONIC_THRESHOLD * n.exp(-2 * angle)
 
             # 1 when ball is in own goal, 0 in opposition goal
             positionScalar = (5120 + ballPos[1]) / 10240
@@ -193,7 +218,6 @@ class BBReward(RewardFunction):
             # Reward driving toward right side of ball
             if carPos[1] < ballPos[1]:
                 reward += self.toDefenceReward * carVel[1] / SUPERSONIC_THRESHOLD / 15
-                reward -= 0.5 * n.abs(carPos[1] - ballPos[1]) / 10240 / 15  # Punish being far away from ball on wrong side
 
 
         # Update stored values
