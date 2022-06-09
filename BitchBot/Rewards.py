@@ -10,6 +10,7 @@ class BBReward(RewardFunction):
 
         # Reward multipliers (values in rewards.cfg)
         self.ballTouchReward         = None      # r per sec touching ball (ground level)
+        self.inAirMultiplier         = None      # multiplier for touching ball in the air
         self.ballAccelerateReward    = None      # r per 0->79.2km/h ball velocity
         self.ballTowardGoal          = None      # r per sec with ball toward goal
         self.goalReward              = None      # r per goal
@@ -48,6 +49,8 @@ class BBReward(RewardFunction):
                     val = float(l[1].split('#')[0])
                     if cmd == 'ballTouchReward':
                         self.ballTouchReward = val
+                    if cmd == 'inAirMultiplier':
+                        self.inAirMultiplier = val
                     elif cmd == 'ballAccelerateReward':
                         self.ballAccelerateReward = val
                     elif cmd == 'ballTowardGoal':
@@ -137,7 +140,7 @@ class BBReward(RewardFunction):
         if player.ball_touched:
             # Reward for touching the ball, higher is better. Double reward if in air
             heightMul = ballPos[2] / (CEILING_Z - 92.75)  # between 0.05 and 1
-            reward += self.ballTouchReward * heightMul * 2 * (1.5 - int(player.on_ground))
+            reward += self.ballTouchReward * heightMul * ((self.inAirMultiplier - 1) * (1 - int(player.on_ground)) + 1)
 
             # Reward for accelerating the ball, 0 -> supersonic = 1r  ##
             ballDeltaV = ballVel - self.prevBallVel

@@ -20,7 +20,7 @@ def get_match():
         obs_builder=BBObservations(),
         state_setter=BBStateSetter(),
         action_parser=BBActionParser(),
-        terminal_conditions=BBTerminalCondition(N_STEPS),
+        terminal_conditions=BBTerminalCondition(N_STEPS // 4),
         game_speed=100,
         team_size=2,
         spawn_opponents=True,
