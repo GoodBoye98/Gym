@@ -1,6 +1,6 @@
 from plistlib import InvalidFileException
 import numpy as n
-from rlgym.utils.common_values import ORANGE_GOAL_CENTER, BLUE_GOAL_CENTER, SUPERSONIC_THRESHOLD, CEILING_Z, ORANGE_TEAM, BLUE_TEAM
+from rlgym.utils.common_values import ORANGE_GOAL_CENTER, BLUE_GOAL_CENTER, SUPERSONIC_THRESHOLD, CEILING_Z, ORANGE_TEAM, BLUE_TEAM, BALL_RADIUS
 from rlgym.utils.reward_functions import RewardFunction
 from rlgym.utils.gamestates import GameState, PlayerData
 
@@ -22,9 +22,8 @@ class BBReward(RewardFunction):
         self.opponentNegation        = None      # r negation for avg. opponent rewards
         self.defendingReward         = None      # r for being in defending position
         self.attackingReward         = None      # r for being in attacking position
-        self.toDefenceReward         = None      # r for driving toward defense if on wrong side of ball
         self.flyTowardAerialBall     = None      # r for flying toward ball in the air
-        self.closeToAerialBall       = None      # r for being close to ball in the air
+        self.flipResetReward         = None      # r for obtaining a flip reset in the air
 
         # Storing player data
         self.players = {}
@@ -75,12 +74,10 @@ class BBReward(RewardFunction):
                         self.defendingReward = val
                     elif cmd == 'attackingReward':
                         self.attackingReward = val
-                    elif cmd == 'toDefenceReward':
-                        self.toDefenceReward = val
                     elif cmd == 'flyTowardAerialBall':
                         self.flyTowardAerialBall = val
-                    elif cmd == 'closeToAerialBall':
-                        self.closeToAerialBall = val
+                    elif cmd == 'flipResetReward':
+                        self.flipResetReward = val
             return True
         except:
             print('Could not update rewards, trying again next reset()')
@@ -106,6 +103,7 @@ class BBReward(RewardFunction):
                 'goals': player.match_goals,
                 'demos': player.match_demolishes,
                 'saves': player.match_saves,
+                'flip': player.has_flip,
                 'team': player.team_num,
                 'reward': 0
             }
@@ -142,10 +140,16 @@ class BBReward(RewardFunction):
         # Reward for scoring a goal
         reward += self.goalReward * (player.match_goals - self.players[player.car_id]['goals'])
 
+        # Unit vector pointing toward ball
+        toBall = ballPos - carPos
+        toBallScalar = n.linalg.norm(toBall)
+        toBall /= toBallScalar
+        ballVelScalar = n.linalg.norm(ballVel) + 1e-6
+
         # Misc. reward for touching ball
         if player.ball_touched:
             # Reward for touching the ball, higher is better. Double reward if in air
-            heightMul = ballPos[2] / (CEILING_Z - 92.75)  # between 0.05 and 1
+            heightMul = ballPos[2] / (CEILING_Z - BALL_RADIUS)  # between 0.05 and 1
             reward += self.ballTouchReward * heightMul * ((self.inAirMultiplier - 1) * (1 - int(player.on_ground)) + 1)
 
             # Reward for accelerating the ball, 0 -> supersonic = 1r  ##
@@ -153,26 +157,21 @@ class BBReward(RewardFunction):
             ballAceleration = n.linalg.norm(ballDeltaV)
             reward += self.ballAccelerateReward * ballAceleration / SUPERSONIC_THRESHOLD
 
+        # Reward to incentivise air dribbling and flip resets
+        elif not player.on_ground:
+            # 0 on ground, linearly to 1 halfway to ceiling. Constantly 1 when higher
+            ballHeightMultiplier = min(2 * (ballPos[2] - BALL_RADIUS) / (CEILING_Z - 2 * BALL_RADIUS), 1)
 
-        # Unit vector pointing toward ball
-        toBall = ballPos - carPos
-        toBallScalar = n.linalg.norm(toBall)
-        toBall /= toBallScalar
-        ballVelScalar = n.linalg.norm(ballVel) + 1e-6
+            # Reward for obtaining a flip reset while in the air
+            reward += ballHeightMultiplier * self.flipResetReward * (int(player.has_flip) - int(self.players[player.car_id]['flip']))
 
+            # Reward for boosting toward ball in the air
+            if deltaBoost < 0 and ballPos[2] > carPos[2]:
+                # 1 when close to ball, 0 when far away
+                ballClosenessMultiplier = n.exp(- n.abs(toBallScalar - 150) / 500)
 
-        # Rewards to incentivise air dribbling
-        if not player.on_ground:
-            # Reward for flying toward ball in the air
-            carVelScalar = n.linalg.norm(carVel)
-            carVelNorm = carVel / carVelScalar
-            angle = n.arccos(n.dot(carVelNorm, toBall))
-            velocityMultiplier = n.min(2 * carVelScalar / SUPERSONIC_THRESHOLD, 1)
-            reward += velocityMultiplier * self.flyTowardAerialBall / 15 * n.exp(- 3 * angle ** 2)
-
-            # Reward for being close to the ball in the air
-            reward += self.closeToAerialBall * (n.exp(- (toBallScalar - 150) / 1000) - 0.1)
-
+                angle = n.arccos(n.dot(player.car_data.forward(), toBall))
+                reward += ballClosenessMultiplier * ballHeightMultiplier * self.flyTowardAerialBall / 15 * n.exp(- 3 * angle ** 2)
 
         if player.team_num == BLUE_TEAM:
             # Reward for having ball go on net
@@ -192,10 +191,6 @@ class BBReward(RewardFunction):
             toGoal = self.orangeGoal - carPos; toGoal /= n.linalg.norm(toGoal)
             angle = n.arccos(n.dot(toGoal, toBall))
             reward += self.attackingReward / 15 * n.exp(-3 * angle ** 2) * (1 - positionScalar)
-
-            # Reward driving toward right side of ball
-            if carPos[1] > ballPos[1]:
-                reward += self.toDefenceReward * -carVel[1] / SUPERSONIC_THRESHOLD / 15
         else:
             # Reward for shooting ball on net, supersonic at goal = 1r, 
             ballToGoal = self.blueGoal - ballPos; ballToGoal /= n.linalg.norm(ballToGoal)
@@ -215,16 +210,12 @@ class BBReward(RewardFunction):
             angle = n.arccos(n.dot(toGoal, toBall))
             reward += self.attackingReward / 15 * n.exp(-3 * angle ** 2) * (1 - positionScalar)
 
-            # Reward driving toward right side of ball
-            if carPos[1] < ballPos[1]:
-                reward += self.toDefenceReward * carVel[1] / SUPERSONIC_THRESHOLD / 15
-
-
         # Update stored values
         self.players[player.car_id]['boost'] = player.boost_amount
         self.players[player.car_id]['goals'] = player.match_goals
         self.players[player.car_id]['demos'] = player.match_demolishes
         self.players[player.car_id]['saves'] = player.match_saves
+        self.players[player.car_id]['flip'] = player.has_flip
         self.players[player.car_id]['reward'] += reward
         self.prevBallVel = ballVel
 
