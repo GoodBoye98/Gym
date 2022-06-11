@@ -22,7 +22,7 @@ class BBReward(RewardFunction):
         self.opponentNegation        = None      # r negation for avg. opponent rewards
         self.defendingReward         = None      # r for being in defending position
         self.attackingReward         = None      # r for being in attacking position
-        self.flyTowardAerialBall     = None      # r for flying toward ball in the air
+        self.faceAerialBall          = None      # r for flying toward ball in the air
         self.flipResetReward         = None      # r for obtaining a flip reset in the air
 
         # Storing player data
@@ -74,8 +74,8 @@ class BBReward(RewardFunction):
                         self.defendingReward = val
                     elif cmd == 'attackingReward':
                         self.attackingReward = val
-                    elif cmd == 'flyTowardAerialBall':
-                        self.flyTowardAerialBall = val
+                    elif cmd == 'faceAerialBall':
+                        self.faceAerialBall = val
                     elif cmd == 'flipResetReward':
                         self.flipResetReward = val
             return True
@@ -165,13 +165,16 @@ class BBReward(RewardFunction):
             # Reward for obtaining a flip reset while in the air
             reward += ballHeightMultiplier * self.flipResetReward * (int(player.has_flip) - int(self.players[player.car_id]['flip']))
 
-            # Reward for boosting toward ball in the air
-            if deltaBoost < 0 and ballPos[2] > carPos[2]:
-                # 1 when close to ball, 0 when far away
-                ballClosenessMultiplier = n.exp(- n.abs(toBallScalar - 150) / 500)
-
+            # Reward for facing ball in the air
+            if ballPos[2] > carPos[2] and carPos[2] > 500:
                 angle = n.arccos(n.dot(player.car_data.forward(), toBall))
-                reward += ballClosenessMultiplier * ballHeightMultiplier * self.flyTowardAerialBall / 15 * n.exp(- 3 * angle ** 2)
+                reward += ballHeightMultiplier * self.faceAerialBall / 15 * n.exp(- 3 * angle ** 2)
+                
+                # Reward for boosting into the ball
+                if deltaBoost < 0:
+                    # 1 when close to ball, 0 when far away
+                    ballClosenessMultiplier = n.exp(- n.abs(toBallScalar - 150) / 300)
+                    reward += 3 * ballClosenessMultiplier / 15 * n.exp(- 3 * angle ** 2)
 
         if player.team_num == BLUE_TEAM:
             # Reward for having ball go on net
