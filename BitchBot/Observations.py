@@ -35,7 +35,7 @@ class BBObservations(ObsBuilder):
         obs[26:29] = CoBMat @ player.car_data.linear_velocity  # Current velocity
 
         # Misc. car data
-        obs[29]  = player.boost_amount
+        obs[29]  = player.boost_amount / 100
         obs[30]  = player.on_ground
         obs[31]  = player.has_jump
         obs[32]  = player.has_flip
@@ -56,7 +56,7 @@ class BBObservations(ObsBuilder):
             obs[43+i*15:46+i*15] = CoBMat @ other_player.car_data.linear_velocity
 
             # Misc. car data
-            obs[46+i*15]  = other_player.boost_amount
+            obs[46+i*15]  = other_player.boost_amount / 100
             obs[47+i*15]  = other_player.on_ground
             obs[48+i*15]  = other_player.has_flip
             i += 1
@@ -72,7 +72,7 @@ class BBObservations(ObsBuilder):
             obs[43+i*15:46+i*15] = CoBMat @ other_player.car_data.linear_velocity
 
             # Misc. car data
-            obs[46+i*15]  = other_player.boost_amount
+            obs[46+i*15]  = other_player.boost_amount / 100
             obs[47+i*15]  = other_player.on_ground
             obs[48+i*15]  = other_player.has_flip
             i += 1
@@ -95,8 +95,8 @@ class BBObservations(ObsBuilder):
             obs[9:12] = CoBMat @ (self.orangeGoal - player.car_data.position)
 
             # Give information about self
-            obs[20:23] = player.car_data.forward() * self.flip # Orientation of car, x & y-axis flipped
-            obs[23:26] = player.car_data.up() * self.flip # Orientation of car, x & y-axis flipped
+            obs[20:23] = player.car_data.forward() * flip # Orientation of car, x & y-axis flipped
+            obs[23:26] = player.car_data.up() * flip # Orientation of car, x & y-axis flipped
             
             # Give location of boost-pads
             for j, boost in enumerate(self.boostLocationsOrange):

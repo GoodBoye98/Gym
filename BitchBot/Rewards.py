@@ -1,6 +1,6 @@
 from plistlib import InvalidFileException
 import numpy as n
-from rlgym.utils.common_values import ORANGE_GOAL_CENTER, BLUE_GOAL_CENTER, SUPERSONIC_THRESHOLD, CEILING_Z, ORANGE_TEAM, BLUE_TEAM, BALL_RADIUS
+from rlgym.utils.common_values import ORANGE_GOAL_CENTER, BLUE_GOAL_CENTER, SUPERSONIC_THRESHOLD, CEILING_Z, ORANGE_TEAM, BLUE_TEAM, BALL_RADIUS, SIDE_WALL_X
 from rlgym.utils.reward_functions import RewardFunction
 from rlgym.utils.gamestates import GameState, PlayerData
 
@@ -23,6 +23,7 @@ class BBReward(RewardFunction):
         self.defendingReward         = None      # r for being in defending position
         self.attackingReward         = None      # r for being in attacking position
         self.faceAerialBall          = None      # r for flying toward ball in the air
+        self.closeToAerialBall       = None      # r per sec for being close to ball in the air
         self.flipResetReward         = None      # r for obtaining a flip reset in the air
 
         # Storing player data
@@ -76,6 +77,8 @@ class BBReward(RewardFunction):
                         self.attackingReward = val
                     elif cmd == 'faceAerialBall':
                         self.faceAerialBall = val
+                    elif cmd == 'closeToAerialBall':
+                        self.closeToAerialBall = val
                     elif cmd == 'flipResetReward':
                         self.flipResetReward = val
             return True
@@ -146,6 +149,9 @@ class BBReward(RewardFunction):
         toBall /= toBallScalar
         ballVelScalar = n.linalg.norm(ballVel) + 1e-6
 
+        # Boost multiplier element in (-3/7, 1), to avoid doing things that require boost without boost 
+        boostMultiplier = (player.boost_amount - 30) / 70
+
         # Misc. reward for touching ball
         if player.ball_touched:
             # Reward for touching the ball, higher is better. Double reward if in air
@@ -160,27 +166,32 @@ class BBReward(RewardFunction):
         # Reward to incentivise air dribbling and flip resets
         elif not player.on_ground:
             # 0 on ground, linearly to 1 halfway to ceiling. Constantly 1 when higher
-            ballHeightMultiplier = min(2 * (ballPos[2] - BALL_RADIUS) / (CEILING_Z - 2 * BALL_RADIUS), 1)
+            ballHeightMultiplier = min(1, 2 * (ballPos[2] - BALL_RADIUS) / (CEILING_Z - 2 * BALL_RADIUS))
 
             # Reward for obtaining a flip reset while in the air
             reward += ballHeightMultiplier * self.flipResetReward * (int(player.has_flip) - int(self.players[player.car_id]['flip']))
 
-            # Reward for facing ball in the air
+            # Rewards high in the air
             if ballPos[2] > carPos[2] and carPos[2] > 500:
+                # Reward for facing the ball in the air
                 angle = n.arccos(n.dot(player.car_data.forward(), toBall))
-                reward += ballHeightMultiplier * self.faceAerialBall / 15 * n.exp(- 3 * angle ** 2)
-                
-                # Reward for boosting into the ball
-                if deltaBoost < 0:
-                    # 1 when close to ball, 0 when far away
-                    ballClosenessMultiplier = n.exp(- n.abs(toBallScalar - 150) / 300)
-                    reward += 3 * ballClosenessMultiplier / 15 * n.exp(- 3 * angle ** 2)
+                facingMultiplier = n.exp(- 3 * angle ** 2) / 15
+                reward += boostMultiplier * ballHeightMultiplier * self.faceAerialBall * facingMultiplier
+
+                # Reward for being close to the ball in the air
+                ballClosenessMultiplier = n.exp(- n.abs(toBallScalar - 170) / 300)
+                reward += boostMultiplier * ballClosenessMultiplier * self.closeToAerialBall * facingMultiplier
+
 
         if player.team_num == BLUE_TEAM:
             # Reward for having ball go on net
             ballToGoal = self.orangeGoal - ballPos; ballToGoal /= n.linalg.norm(ballToGoal)
             angle = n.arccos(n.dot(ballToGoal, ballVel / ballVelScalar))
             reward += self.ballTowardGoal / 15 * ballVelScalar / SUPERSONIC_THRESHOLD * n.exp(-2 * angle)
+
+            # Punish having ball go toward own net
+            if ballVel[1] < 0:
+                reward += self.ballTouchReward / 30 * ballVel[1] / SUPERSONIC_THRESHOLD
 
             # 1 when ball is in own goal, 0 in opposition goal
             positionScalar = (5120 - ballPos[1]) / 10240
@@ -199,6 +210,10 @@ class BBReward(RewardFunction):
             ballToGoal = self.blueGoal - ballPos; ballToGoal /= n.linalg.norm(ballToGoal)
             angle = n.arccos(n.dot(ballToGoal, ballVel / ballVelScalar))
             reward += self.ballTowardGoal / 15 * ballVelScalar / SUPERSONIC_THRESHOLD * n.exp(-2 * angle)
+
+            # Punish having ball go toward own net
+            if ballVel[1] > 0:
+                reward -= self.ballTouchReward / 30 * ballVel[1] / SUPERSONIC_THRESHOLD
 
             # 1 when ball is in own goal, 0 in opposition goal
             positionScalar = (5120 + ballPos[1]) / 10240
