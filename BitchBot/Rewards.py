@@ -149,8 +149,8 @@ class BBReward(RewardFunction):
         toBall /= toBallScalar
         ballVelScalar = n.linalg.norm(ballVel) + 1e-6
 
-        # Boost multiplier element in (-3/7, 1), to avoid doing things that require boost without boost 
-        boostMultiplier = (player.boost_amount - 30) / 70
+        # Boost multiplier element in (0, 1), to encourage doing aerials with boost
+        boostMultiplier = player.boost_amount / 100
 
         # Misc. reward for touching ball
         if player.ball_touched:
@@ -165,8 +165,8 @@ class BBReward(RewardFunction):
 
         # Reward to incentivise air dribbling and flip resets
         elif not player.on_ground:
-            # 0 on ground, linearly to 1 halfway to ceiling. Constantly 1 when higher
-            ballHeightMultiplier = min(1, 2 * (ballPos[2] - BALL_RADIUS) / (CEILING_Z - 2 * BALL_RADIUS))
+            # 0 on ground, linearly to 0.5 halfway to ceiling. Constantly 0.5 when higher
+            ballHeightMultiplier = min(0.5, (ballPos[2] - BALL_RADIUS) / (CEILING_Z - 2 * BALL_RADIUS))
 
             # Reward for obtaining a flip reset while in the air
             reward += ballHeightMultiplier * self.flipResetReward * (int(player.has_flip) - int(self.players[player.car_id]['flip']))
